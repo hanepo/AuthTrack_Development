@@ -246,7 +246,14 @@
 
           const container = document.getElementById("messageHistory");
 
-          if (!messages || messages.length === 0) {
+          // Filter to only show messages related to current user
+          const myMessages = messages.filter(
+            (msg) =>
+              msg.fromUserId === currentUserId ||
+              msg.toUserId === currentUserId,
+          );
+
+          if (!myMessages || myMessages.length === 0) {
             container.innerHTML = `
               <div class="empty-state">
                 <i class="fa-solid fa-inbox"></i>
@@ -257,11 +264,11 @@
           }
 
           // Sort by timestamp, newest first
-          messages.sort(
+          myMessages.sort(
             (a, b) => new Date(b.timestamp) - new Date(a.timestamp),
           );
 
-          container.innerHTML = messages
+          container.innerHTML = myMessages
             .map((msg) => {
               const isFromAdmin = msg.type === "reply";
               const date = new Date(msg.timestamp).toLocaleString();
@@ -301,9 +308,13 @@
             })
             .join("");
 
-          // Mark unread admin replies as read
-          messages.forEach(async (msg) => {
-            if (msg.type === "reply" && !msg.read) {
+          // Mark unread admin replies as read (only for current user's messages)
+          myMessages.forEach(async (msg) => {
+            if (
+              msg.type === "reply" &&
+              !msg.read &&
+              msg.toUserId === currentUserId
+            ) {
               try {
                 await fetch(`/api/messages/${msg.id}`, {
                   method: "PUT",
