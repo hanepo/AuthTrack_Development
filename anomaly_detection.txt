@@ -1,0 +1,88 @@
+ML ANOMALY DETECTION - HOW IT WORKS
+=====================================
+
+WHAT IS IT?
+-----------
+AI system that monitors internet traffic and detects unusual (anomaly) activity.
+
+
+HOW DOES IT WORK?
+-----------------
+
+1. LEARN NORMAL PATTERNS
+   - System watches internet traffic all the time
+   - Calculates average traffic (baseline) - example: 50 bytes is normal
+   - Learns what's "normal" for your network
+
+2. DETECT ANOMALIES
+   - When traffic suddenly spikes high, system alerts
+   - THRESHOLD: Minimum 120 bytes OR 3x baseline (whichever is higher)
+   - Example: If normal is 50 bytes, must be over 150 bytes to alert
+
+3. SMART FILTERING
+   - Not all spikes trigger alerts
+   - TELEGRAM NOTIFICATION only for big spikes: > 500 bytes OR 5x baseline
+   - This avoids spam notifications for small traffic
+
+
+REAL EXAMPLES:
+--------------
+✓ Normal traffic: 30-50 bytes        → No alert (normal)
+✗ Small spike: 80 bytes              → No alert (below 120 threshold)
+✓ Medium spike: 200 bytes            → Dashboard alert only
+✓ Large spike: 600 bytes             → Dashboard alert + Telegram notification
+
+
+WHY IS IT IMPORTANT?
+--------------------
+Detects if there's:
+• Virus/malware downloading lots of data
+• DDoS attack
+• Someone downloading large files without permission
+• Suspicious network activity
+• Unauthorized data exfiltration
+
+
+TECHNICAL DETAILS:
+------------------
+- Algorithm: Isolation Forest (scikit-learn)
+- Contamination rate: 0.1 (expects 10% anomalies)
+- Training data: Last 10+ traffic measurements
+- Baseline calculation: Mean of all traffic values
+- Minimum threshold: max(120, baseline * 3)
+- Notification threshold: max(500, baseline * 5)
+
+
+CONFIGURATION:
+--------------
+Current settings in app.py (line 2090-2125):
+- Minimum alert threshold: 120 bytes
+- Baseline multiplier: 3x
+- Telegram notification: 5x baseline or 500 bytes
+- Auto-retraining: Every time API is called
+
+
+HOW TO TEST:
+------------
+1. Start packet sniffer in dashboard
+2. Generate some normal traffic (browse websites)
+3. Download a large file (generates spike)
+4. Check dashboard "ML Anomaly Detection" section
+5. Should see alert only if traffic > 120 bytes
+
+
+TROUBLESHOOTING:
+----------------
+Problem: Too many alerts
+→ Solution: Increase min_threshold in app.py line 2095
+
+Problem: No alerts even with high traffic
+→ Solution: Check if packet sniffer is running
+→ Solution: Verify traffic_history has data
+
+Problem: Baseline too low
+→ Solution: Generate more normal traffic to establish better baseline
+
+
+Last Updated: January 27, 2026
+AuthTrack Network Monitoring System

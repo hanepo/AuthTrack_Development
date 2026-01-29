@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AuthTrack - My Traffic</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="/static/css/style.css" />
+  </head>
+  <body>
+    <div class="app-container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="logo">
+          <i class="fa-solid fa-network-wired"></i> AuthTrack
+        </div>
+        <nav>
+          <a href="/user/dashboard" class="nav-item">
+            <i class="fa-solid fa-chart-line"></i> Dashboard
+          </a>
+          <a href="/user/traffic" class="nav-item active">
+            <i class="fa-solid fa-signal"></i> My Traffic
+          </a>
+          <a href="/user/restrictions" class="nav-item">
+            <i class="fa-solid fa-shield-halved"></i> My Restrictions
+          </a>
+          <a href="/user/requests" class="nav-item">
+            <i class="fa-solid fa-envelope"></i> Contact Admin
+          </a>
+          <a href="/user/profile" class="nav-item">
+            <i class="fa-solid fa-user"></i> My Profile
+          </a>
+          <a href="/logout" class="nav-item" style="margin-top: auto">
+            <i class="fa-solid fa-right-from-bracket"></i> Logout
+          </a>
+        </nav>
+
+        <!-- System Stats -->
+        <div style="margin-top: auto">
+          <div class="system-stats">
+            <div class="title">
+              <i class="fa-solid fa-microchip"></i> System Status
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>CPU</span>
+                <span id="cpuVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill cpu" id="cpuBar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>Memory</span>
+                <span id="memVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill memory" id="memBar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>Disk</span>
+                <span id="diskVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill disk" id="diskBar" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <header>
+          <div class="page-title">
+            <h1>My Traffic</h1>
+          </div>
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 15px;
+              margin-left: auto;
+            "
+          >
+            <span
+              style="color: var(--text-muted); font-size: 14px"
+              id="userEmail"
+              >Loading...</span
+            >
+          </div>
+        </header>
+
+        <!-- Traffic Stats -->
+        <div class="grid-4" style="margin-bottom: 20px">
+          <div class="stat-card">
+            <div class="icon blue"><i class="fa-solid fa-ethernet"></i></div>
+            <h3 id="totalPackets">0</h3>
+            <p>Total Packets</p>
+          </div>
+          <div class="stat-card">
+            <div class="icon green"><i class="fa-solid fa-download"></i></div>
+            <h3 id="dataReceived">0 MB</h3>
+            <p>Data Received</p>
+          </div>
+          <div class="stat-card">
+            <div class="icon orange"><i class="fa-solid fa-upload"></i></div>
+            <h3 id="dataSent">0 MB</h3>
+            <p>Data Sent</p>
+          </div>
+          <div class="stat-card">
+            <div class="icon purple"><i class="fa-solid fa-globe"></i></div>
+            <h3 id="totalConnections">0</h3>
+            <p>Connections</p>
+          </div>
+        </div>
+
+        <!-- Recent Traffic -->
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-network-wired"></i> Recent Network Traffic
+            <div
+              style="
+                margin-left: auto;
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                color: var(--success);
+                font-size: 12px;
+              "
+            >
+              <div
+                style="
+                  width: 8px;
+                  height: 8px;
+                  background: var(--success);
+                  border-radius: 50%;
+                  animation: pulse 2s infinite;
+                "
+              ></div>
+              <span>Live</span>
+            </div>
+          </div>
+          <div style="overflow-x: auto">
+            <table class="device-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Source</th>
+                  <th>Destination</th>
+                  <th>Protocol</th>
+                  <th>Ports</th>
+                  <th>Size</th>
+                </tr>
+              </thead>
+              <tbody id="trafficTableBody">
+                <tr>
+                  <td
+                    colspan="6"
+                    style="text-align: center; color: var(--text-muted)"
+                  >
+                    Loading traffic data...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <style>
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+
+      /* Traffic Table Styling */
+      .device-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+      }
+
+      .device-table thead th {
+        background: var(--bg-secondary);
+        color: var(--text-muted);
+        font-weight: 600;
+        font-size: 12px;
+        text-transform: uppercase;
+        padding: 12px 16px;
+        text-align: left;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        border-bottom: 2px solid var(--border);
+      }
+
+      .device-table thead th:first-child {
+        border-top-left-radius: 8px;
+      }
+
+      .device-table thead th:last-child {
+        border-top-right-radius: 8px;
+      }
+
+      .device-table tbody tr {
+        transition: all 0.2s ease;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .device-table tbody tr:hover {
+        background: rgba(59, 130, 246, 0.05);
+        transform: translateX(2px);
+      }
+
+      .device-table tbody tr:nth-child(even) {
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .device-table tbody tr:nth-child(even):hover {
+        background: rgba(59, 130, 246, 0.05);
+      }
+
+      .device-table tbody td {
+        padding: 12px 16px;
+        font-size: 13px;
+        vertical-align: middle;
+      }
+
+      .device-table tbody td:first-child {
+        color: var(--text-muted);
+        font-family: "Courier New", monospace;
+        font-weight: 500;
+      }
+
+      .traffic-ip {
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+        padding: 4px 8px;
+        background: var(--bg-secondary);
+        border-radius: 4px;
+        display: inline-block;
+      }
+
+      .traffic-ip.local {
+        color: var(--success);
+        border-left: 3px solid var(--success);
+      }
+
+      .traffic-ip.external {
+        color: var(--primary);
+        border-left: 3px solid var(--primary);
+      }
+
+      .protocol-badge {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: inline-block;
+      }
+
+      .protocol-badge.tcp {
+        background: rgba(59, 130, 246, 0.15);
+        color: rgb(59, 130, 246);
+      }
+
+      .protocol-badge.udp {
+        background: rgba(168, 85, 247, 0.15);
+        color: rgb(168, 85, 247);
+      }
+
+      .protocol-badge.icmp {
+        background: rgba(251, 146, 60, 0.15);
+        color: rgb(251, 146, 60);
+      }
+
+      .port-info {
+        color: var(--text-muted);
+        font-size: 12px;
+      }
+
+      .port-arrow {
+        color: var(--primary);
+        margin: 0 4px;
+      }
+
+      .service-tag {
+        color: var(--text-muted);
+        font-size: 11px;
+        font-style: italic;
+      }
+
+      .size-badge {
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      .size-badge.large {
+        color: var(--danger);
+      }
+
+      .size-badge.medium {
+        color: var(--warning);
+      }
+
+      .size-badge.small {
+        color: var(--success);
+      }
+    </style>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", async () => {
+        await loadUserInfo();
+        await loadTrafficData();
+        updateSystemStats();
+        setInterval(updateSystemStats, 2000);
+        setInterval(loadTrafficData, 3000);
+      });
+
+      async function loadUserInfo() {
+        try {
+          const response = await fetch("/api/auth/session");
+          const data = await response.json();
+          if (data.loggedIn) {
+            document.getElementById("userEmail").textContent = data.email;
+          }
+        } catch (error) {
+          console.error("Failed to load user info:", error);
+        }
+      }
+
+      async function loadTrafficData() {
+        try {
+          // Fetch network stats for cumulative data
+          const statsResponse = await fetch("/api/network/stats");
+          const stats = await statsResponse.json();
+
+          // Update stats with cumulative data
+          document.getElementById("totalPackets").textContent =
+            stats.total_packets || 0;
+          document.getElementById("dataReceived").textContent =
+            ((stats.inbound_bytes || 0) / (1024 * 1024)).toFixed(2) + " MB";
+          document.getElementById("dataSent").textContent =
+            ((stats.outbound_bytes || 0) / (1024 * 1024)).toFixed(2) + " MB";
+          document.getElementById("totalConnections").textContent =
+            stats.active_connections || 0;
+
+          // Fetch packets for table display
+          const packetsResponse = await fetch("/api/network/packets");
+          const data = await packetsResponse.json();
+          const packets = data.packets || [];
+
+          // Update table
+          const tbody = document.getElementById("trafficTableBody");
+
+          if (packets.length === 0) {
+            tbody.innerHTML = `
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">
+                  <i class="fa-solid fa-circle-info" style="font-size: 24px; margin-bottom: 10px; display: block;"></i>
+                  No traffic data available
+                </td>
+              </tr>
+            `;
+            return;
+          }
+
+          tbody.innerHTML = packets
+            .slice(-30)
+            .reverse()
+            .map((packet) => {
+              const proto = packet.protocol || "N/A";
+              const protoClass = proto.toLowerCase();
+              const srcPort = packet.src_port || "?";
+              const dstPort = packet.dst_port || "?";
+              const service = packet.service || "";
+              const size = packet.length || 0;
+
+              // Determine if IPs are local or external
+              const srcIsLocal = isPrivateIP(packet.source);
+              const dstIsLocal = isPrivateIP(packet.destination);
+
+              // Size classification
+              let sizeClass = "small";
+              if (size > 1000) sizeClass = "large";
+              else if (size > 200) sizeClass = "medium";
+
+              return `
+            <tr>
+              <td style="color: var(--text-muted); font-family: 'Courier New', monospace; font-weight: 500;">
+                <i class="fa-solid fa-clock" style="font-size: 10px; margin-right: 4px;"></i>
+                ${packet.timestamp || "N/A"}
+              </td>
+              <td>
+                <span class="traffic-ip ${srcIsLocal ? "local" : "external"}">
+                  <i class="fa-solid ${
+                    srcIsLocal ? "fa-home" : "fa-globe"
+                  }" style="font-size: 10px; margin-right: 4px;"></i>
+                  ${packet.source || "N/A"}
+                </span>
+              </td>
+              <td>
+                <span class="traffic-ip ${dstIsLocal ? "local" : "external"}">
+                  <i class="fa-solid ${
+                    dstIsLocal ? "fa-home" : "fa-globe"
+                  }" style="font-size: 10px; margin-right: 4px;"></i>
+                  ${packet.destination || "N/A"}
+                </span>
+              </td>
+              <td>
+                <span class="protocol-badge ${protoClass}">
+                  ${proto}
+                </span>
+              </td>
+              <td class="port-info">
+                ${srcPort}<span class="port-arrow">→</span>${dstPort}
+                ${
+                  service
+                    ? `<br><span class="service-tag">${service}</span>`
+                    : ""
+                }
+              </td>
+              <td>
+                <span class="size-badge ${sizeClass}">
+                  ${size.toLocaleString()}
+                </span>
+                <span style="color: var(--text-muted); font-size: 11px;">bytes</span>
+              </td>
+            </tr>
+          `;
+            })
+            .join("");
+        } catch (error) {
+          console.error("Failed to load traffic data:", error);
+          document.getElementById("trafficTableBody").innerHTML = `
+            <tr>
+              <td colspan="6" style="text-align: center; color: var(--danger); padding: 20px;">
+                <i class="fa-solid fa-exclamation-triangle" style="font-size: 24px; margin-bottom: 10px; display: block;"></i>
+                Failed to load traffic data
+              </td>
+            </tr>
+          `;
+        }
+      }
+
+      function isPrivateIP(ip) {
+        if (!ip) return false;
+        if (ip.startsWith("192.168.") || ip.startsWith("10.")) return true;
+        if (ip.startsWith("172.")) {
+          const second = parseInt(ip.split(".")[1]);
+          return second >= 16 && second <= 31;
+        }
+        return false;
+      }
+
+      async function updateSystemStats() {
+        try {
+          const response = await fetch("/api/system/stats");
+          const data = await response.json();
+
+          document.getElementById("cpuVal").textContent = data.cpu + "%";
+          document.getElementById("cpuBar").style.width = data.cpu + "%";
+
+          document.getElementById("memVal").textContent = data.memory + "%";
+          document.getElementById("memBar").style.width = data.memory + "%";
+
+          document.getElementById("diskVal").textContent = data.disk + "%";
+          document.getElementById("diskBar").style.width = data.disk + "%";
+        } catch (error) {
+          console.error("Failed to update system stats:", error);
+        }
+      }
+    </script>
+  </body>
+</html>

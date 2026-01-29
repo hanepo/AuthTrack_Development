@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AuthTrack - Traffic Analysis</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="/static/css/style.css" />
+    <style>
+      .traffic-live {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--success);
+        font-size: 12px;
+      }
+      .traffic-live .dot {
+        width: 8px;
+        height: 8px;
+        background: var(--success);
+        border-radius: 50%;
+        animation: pulse 1.5s infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+      .traffic-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 12px;
+        border-bottom: 1px solid var(--border);
+        transition: 0.2s;
+      }
+      .traffic-item:hover {
+        background: rgba(59, 130, 246, 0.05);
+      }
+      .traffic-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+      }
+      .traffic-icon.visit {
+        background: rgba(59, 130, 246, 0.15);
+        color: var(--primary);
+      }
+      .traffic-icon.blocked {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--danger);
+      }
+      .traffic-icon.focus {
+        background: rgba(16, 185, 129, 0.15);
+        color: var(--success);
+      }
+      .filter-bar {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+      .filter-bar select,
+      .filter-bar input {
+        padding: 8px 12px;
+        background: var(--bg-dark);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text-main);
+        font-size: 13px;
+      }
+      /* System Stats Styles */
+      .system-stats {
+        padding: 15px;
+        background: var(--bg-card);
+        border-radius: 10px;
+        border: 1px solid var(--border);
+      }
+      .system-stats .title {
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 15px;
+        color: var(--text-muted);
+      }
+      .sys-stat {
+        margin-bottom: 15px;
+      }
+      .sys-stat .header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        margin-bottom: 5px;
+      }
+      .sys-stat .bar {
+        height: 6px;
+        background: var(--bg-dark);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .sys-stat .fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.3s;
+      }
+      .sys-stat .fill.cpu {
+        background: var(--success);
+      }
+      .sys-stat .fill.memory {
+        background: var(--warning);
+      }
+      .sys-stat .fill.disk {
+        background: var(--primary);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="logo">
+          <i class="fa-solid fa-network-wired"></i> AuthTrack
+        </div>
+        <nav>
+          <a href="/dashboard" class="nav-item">
+            <i class="fa-solid fa-chart-line"></i> Dashboard
+          </a>
+          <a href="/traffic" class="nav-item active">
+            <i class="fa-solid fa-signal"></i> Traffic Analysis
+          </a>
+          <a href="/devices" class="nav-item">
+            <i class="fa-solid fa-laptop"></i> Device Settings
+          </a>
+          <a href="/logs" class="nav-item">
+            <i class="fa-solid fa-file-lines"></i> Logs & Reports
+          </a>
+          <a href="/messages" class="nav-item">
+            <i class="fa-solid fa-envelope"></i> User Requests
+          </a>
+          <a href="/profile" class="nav-item">
+            <i class="fa-solid fa-user"></i> Profile
+          </a>
+          <a href="/logout" class="nav-item" style="margin-top: auto">
+            <i class="fa-solid fa-right-from-bracket"></i> Logout
+          </a>
+        </nav>
+
+        <!-- System Stats moved to bottom -->
+        <div style="margin-top: auto">
+          <div class="system-stats">
+            <div class="title">
+              <i class="fa-solid fa-microchip"></i> System Status
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>CPU</span>
+                <span id="cpuVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill cpu" id="cpuBar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>Memory</span>
+                <span id="memVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill memory" id="memBar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>Disk</span>
+                <span id="diskVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill disk" id="diskBar" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <header>
+          <div class="page-title">
+            <h1>Traffic Analysis</h1>
+          </div>
+          <div style="display: flex; align-items: center; gap: 15px">
+            <div class="traffic-live">
+              <div class="dot"></div>
+              Live Monitoring
+            </div>
+            <span style="color: var(--text-muted); font-size: 14px"
+              >{{ user_email }}</span
+            >
+          </div>
+        </header>
+
+        <!-- Filter Bar (User filter admin-only) -->
+        <div class="filter-bar">
+          <select id="filterUser" class="admin-only" style="display: none">
+            <option value="">All Users</option>
+          </select>
+          <select id="filterAction">
+            <option value="">All Actions</option>
+            <option value="visit">Visits</option>
+            <option value="blocked">Blocked</option>
+            <option value="focus">Focus</option>
+          </select>
+          <input type="text" id="filterSearch" placeholder="Search URL..." />
+          <button class="btn btn-outline" onclick="loadTraffic()">
+            <i class="fa-solid fa-refresh"></i> Refresh
+          </button>
+        </div>
+
+        <!-- Traffic Stats -->
+        <div class="grid-3" style="margin-bottom: 20px">
+          <div class="stat-card">
+            <div class="icon blue"><i class="fa-solid fa-globe"></i></div>
+            <h3 id="statVisits">0</h3>
+            <p>Page Visits</p>
+          </div>
+          <div class="stat-card">
+            <div class="icon red"><i class="fa-solid fa-ban"></i></div>
+            <h3 id="statBlocked">0</h3>
+            <p>Blocked Attempts</p>
+          </div>
+          <div class="stat-card">
+            <div class="icon green"><i class="fa-solid fa-users"></i></div>
+            <h3 id="statActiveUsers">0</h3>
+            <p>Active Users</p>
+          </div>
+        </div>
+
+        <!-- Real-time Traffic -->
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-stream"></i> Real-Time Traffic Feed
+          </div>
+          <div id="trafficFeed" style="max-height: 500px; overflow-y: auto">
+            <div class="empty-state">
+              <i class="fa-solid fa-satellite-dish"></i>
+              <p>Waiting for traffic data...</p>
+              <p style="font-size: 11px">
+                Install the browser extension to start monitoring
+              </p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script type="module">
+      import { auth } from "/static/js/firebase-config.js";
+      import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+      let allTraffic = [];
+      let userRole = "user";
+      let currentUserEmail = "";
+
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+          window.location.href = "/login";
+          return;
+        }
+
+        currentUserEmail = user.email;
+
+        const sessionRes = await fetch("/api/auth/session");
+        const session = await sessionRes.json();
+        userRole = session.role;
+
+        // Show admin-only elements
+        if (userRole === "admin") {
+          document.querySelectorAll(".admin-only").forEach((el) => {
+            el.style.display = "";
+          });
+          // Update message nav text for admin
+          const msgNavText = document.getElementById("msgNavText");
+          if (msgNavText) msgNavText.textContent = "Requests";
+          await loadUsers();
+        }
+
+        await loadTraffic();
+      });
+
+      async function loadUsers() {
+        const res = await fetch("/api/users");
+        const users = await res.json();
+
+        const select = document.getElementById("filterUser");
+        users.forEach((user) => {
+          const option = document.createElement("option");
+          option.value = user.id;
+          option.textContent = user.email;
+          select.appendChild(option);
+        });
+      }
+
+      window.loadTraffic = async function () {
+        const res = await fetch("/api/traffic/realtime");
+        allTraffic = await res.json();
+
+        // Calculate stats
+        const visits = allTraffic.filter((t) => t.action === "visit").length;
+        const blocked = allTraffic.filter((t) => t.action === "blocked").length;
+        const uniqueUsers = new Set(allTraffic.map((t) => t.user)).size;
+
+        document.getElementById("statVisits").textContent = visits;
+        document.getElementById("statBlocked").textContent = blocked;
+        document.getElementById("statActiveUsers").textContent = uniqueUsers;
+
+        renderTraffic();
+      };
+
+      function renderTraffic() {
+        const container = document.getElementById("trafficFeed");
+        const userFilter = document.getElementById("filterUser").value;
+        const actionFilter = document.getElementById("filterAction").value;
+        const searchFilter = document
+          .getElementById("filterSearch")
+          .value.toLowerCase();
+
+        let filtered = allTraffic;
+
+        // For regular users, only show their own traffic
+        if (userRole !== "admin") {
+          filtered = filtered.filter((t) => t.user === currentUserEmail);
+        }
+
+        if (userFilter) {
+          filtered = filtered.filter(
+            (t) => t.user && t.user.includes(userFilter)
+          );
+        }
+        if (actionFilter) {
+          filtered = filtered.filter((t) => t.action === actionFilter);
+        }
+        if (searchFilter) {
+          filtered = filtered.filter(
+            (t) => t.url && t.url.toLowerCase().includes(searchFilter)
+          );
+        }
+
+        if (filtered.length === 0) {
+          container.innerHTML = `
+          <div class="empty-state">
+            <i class="fa-solid fa-satellite-dish"></i>
+            <p>No traffic data found</p>
+          </div>
+        `;
+          return;
+        }
+
+        container.innerHTML = filtered
+          .map(
+            (t) => `
+        <div class="traffic-item">
+          <div class="traffic-icon ${t.action}">
+            <i class="fa-solid ${getIcon(t.action)}"></i>
+          </div>
+          <div style="flex: 1;">
+            <div style="font-size: 13px; margin-bottom: 3px;">
+              <strong>${t.user || "Unknown"}</strong>
+              <span class="status status-${
+                t.action === "blocked" ? "blocked" : "active"
+              }" style="margin-left: 8px;">${t.action}</span>
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); word-break: break-all;">${
+              t.url || "-"
+            }</div>
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted);">${formatTime(
+            t.timestamp
+          )}</div>
+        </div>
+      `
+          )
+          .join("");
+      }
+
+      function getIcon(action) {
+        const icons = {
+          visit: "fa-globe",
+          blocked: "fa-ban",
+          focus: "fa-eye",
+        };
+        return icons[action] || "fa-circle";
+      }
+
+      function formatTime(timestamp) {
+        if (!timestamp) return "-";
+        const date = new Date(timestamp);
+        return date.toLocaleTimeString();
+      }
+
+      // Filter listeners
+      document
+        .getElementById("filterUser")
+        .addEventListener("change", renderTraffic);
+      document
+        .getElementById("filterAction")
+        .addEventListener("change", renderTraffic);
+      document
+        .getElementById("filterSearch")
+        .addEventListener("input", renderTraffic);
+
+      // System stats update
+      async function updateSystemStats() {
+        try {
+          const response = await fetch("/api/system/stats");
+          const data = await response.json();
+
+          document.querySelector(".fill.cpu").style.width = data.cpu + "%";
+          document.getElementById("cpuVal").textContent = data.cpu + "%";
+
+          document.querySelector(".fill.memory").style.width =
+            data.memory + "%";
+          document.getElementById("memVal").textContent = data.memory + "%";
+
+          document.querySelector(".fill.disk").style.width = data.disk + "%";
+          document.getElementById("diskVal").textContent = data.disk + "%";
+        } catch (error) {
+          console.error("Failed to update system stats:", error);
+        }
+      }
+
+      // Update system stats every 2 seconds
+      setInterval(updateSystemStats, 2000);
+      updateSystemStats();
+
+      // Auto-refresh every 10 seconds
+      setInterval(loadTraffic, 10000);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AuthTrack - 2FA Verification</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="/static/css/style.css" />
+    <style>
+      .code-inputs {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin: 30px 0;
+      }
+      .code-input {
+        width: 50px;
+        height: 60px;
+        text-align: center;
+        font-size: 24px;
+        font-weight: 600;
+        background: var(--bg-dark);
+        border: 2px solid var(--border);
+        border-radius: 10px;
+        color: var(--text-main);
+      }
+      .code-input:focus {
+        outline: none;
+        border-color: var(--primary);
+      }
+      .resend-link {
+        text-align: center;
+        margin-top: 20px;
+      }
+      .resend-link a {
+        color: var(--primary);
+        text-decoration: none;
+        font-size: 13px;
+      }
+      .resend-link a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="login-container">
+      <div class="login-box">
+        <div class="logo" style="justify-content: center; margin-bottom: 20px">
+          <i class="fa-solid fa-shield-halved"></i> Verification
+        </div>
+        <h1>Two-Factor Authentication</h1>
+        <p class="subtitle">Enter the 6-digit code sent to your email</p>
+
+        <div id="errorMsg" class="alert alert-danger" style="display: none">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <span id="errorText"></span>
+        </div>
+
+        <div id="successMsg" class="alert alert-success" style="display: none">
+          <i class="fa-solid fa-check-circle"></i>
+          <span>Verification successful! Redirecting...</span>
+        </div>
+
+        <form id="verifyForm">
+          <div class="code-inputs">
+            <input
+              type="text"
+              class="code-input"
+              maxlength="1"
+              data-index="0"
+              autofocus
+            />
+            <input
+              type="text"
+              class="code-input"
+              maxlength="1"
+              data-index="1"
+            />
+            <input
+              type="text"
+              class="code-input"
+              maxlength="1"
+              data-index="2"
+            />
+            <input
+              type="text"
+              class="code-input"
+              maxlength="1"
+              data-index="3"
+            />
+            <input
+              type="text"
+              class="code-input"
+              maxlength="1"
+              data-index="4"
+            />
+            <input
+              type="text"
+              class="code-input"
+              maxlength="1"
+              data-index="5"
+            />
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%">
+            <i class="fa-solid fa-check"></i> Verify
+          </button>
+        </form>
+
+        <div class="resend-link">
+          <a href="/login"
+            ><i class="fa-solid fa-arrow-left"></i> Back to Login</a
+          >
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const inputs = document.querySelectorAll(".code-input");
+      const form = document.getElementById("verifyForm");
+      const errorMsg = document.getElementById("errorMsg");
+      const errorText = document.getElementById("errorText");
+      const successMsg = document.getElementById("successMsg");
+
+      // Auto-focus next input
+      inputs.forEach((input, index) => {
+        input.addEventListener("input", (e) => {
+          if (e.target.value.length === 1 && index < inputs.length - 1) {
+            inputs[index + 1].focus();
+          }
+        });
+
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Backspace" && !e.target.value && index > 0) {
+            inputs[index - 1].focus();
+          }
+        });
+
+        // Handle paste
+        input.addEventListener("paste", (e) => {
+          e.preventDefault();
+          const pastedData = e.clipboardData.getData("text").slice(0, 6);
+          pastedData.split("").forEach((char, i) => {
+            if (inputs[i]) inputs[i].value = char;
+          });
+          if (inputs[pastedData.length - 1]) {
+            inputs[pastedData.length - 1].focus();
+          }
+        });
+      });
+
+      function showError(msg) {
+        errorText.textContent = msg;
+        errorMsg.style.display = "flex";
+        successMsg.style.display = "none";
+      }
+
+      function showSuccess() {
+        successMsg.style.display = "flex";
+        errorMsg.style.display = "none";
+      }
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const code = Array.from(inputs)
+          .map((i) => i.value)
+          .join("");
+
+        if (code.length !== 6) {
+          showError("Please enter all 6 digits");
+          return;
+        }
+
+        try {
+          const response = await fetch("/api/auth/verify-2fa", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code: code }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showSuccess();
+            setTimeout(() => {
+              window.location.href = data.redirect || "/dashboard";
+            }, 1000);
+          } else {
+            showError(data.message || "Invalid code");
+            inputs.forEach((i) => (i.value = ""));
+            inputs[0].focus();
+          }
+        } catch (error) {
+          showError("Verification failed. Please try again.");
+        }
+      });
+    </script>
+  </body>
+</html>

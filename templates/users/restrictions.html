@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AuthTrack - My Restrictions</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="/static/css/style.css" />
+    <style>
+      .restriction-item {
+        padding: 15px;
+        background: var(--bg-dark);
+        border-radius: 8px;
+        margin-bottom: 12px;
+        border-left: 4px solid var(--primary);
+      }
+      .restriction-item.blocked {
+        border-left-color: var(--danger);
+      }
+      .restriction-item .title {
+        font-weight: 600;
+        color: var(--text-main);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .restriction-item .detail {
+        font-size: 14px;
+        color: var(--text-muted);
+        margin-bottom: 5px;
+      }
+      .time-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        background: var(--primary);
+        color: white;
+        border-radius: 5px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .blocked-site {
+        padding: 10px 15px;
+        background: var(--bg-dark);
+        border-radius: 6px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--text-main);
+      }
+      .blocked-site i {
+        color: var(--danger);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="logo">
+          <i class="fa-solid fa-network-wired"></i> AuthTrack
+        </div>
+        <nav>
+          <a href="/user/dashboard" class="nav-item">
+            <i class="fa-solid fa-chart-line"></i> Dashboard
+          </a>
+          <a href="/user/traffic" class="nav-item">
+            <i class="fa-solid fa-signal"></i> My Traffic
+          </a>
+          <a href="/user/restrictions" class="nav-item active">
+            <i class="fa-solid fa-shield-halved"></i> My Restrictions
+          </a>
+          <a href="/user/requests" class="nav-item">
+            <i class="fa-solid fa-envelope"></i> Contact Admin
+          </a>
+          <a href="/user/profile" class="nav-item">
+            <i class="fa-solid fa-user"></i> My Profile
+          </a>
+          <a href="/logout" class="nav-item" style="margin-top: auto">
+            <i class="fa-solid fa-right-from-bracket"></i> Logout
+          </a>
+        </nav>
+
+        <!-- System Stats -->
+        <div style="margin-top: auto">
+          <div class="system-stats">
+            <div class="title">
+              <i class="fa-solid fa-microchip"></i> System Status
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>CPU</span>
+                <span id="cpuVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill cpu" id="cpuBar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>Memory</span>
+                <span id="memVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill memory" id="memBar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>Disk</span>
+                <span id="diskVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill disk" id="diskBar" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <header>
+          <div class="page-title">
+            <h1>My Restrictions</h1>
+          </div>
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 15px;
+              margin-left: auto;
+            "
+          >
+            <span
+              style="color: var(--text-muted); font-size: 14px"
+              id="userEmail"
+              >Loading...</span
+            >
+          </div>
+        </header>
+
+        <!-- Time-Based Restrictions -->
+        <div class="card" style="margin-bottom: 20px">
+          <div class="card-title">
+            <i class="fa-solid fa-clock"></i> Time-Based Restrictions
+          </div>
+          <div id="timeRestrictions">
+            <div class="empty-state">
+              <i class="fa-solid fa-spinner fa-spin"></i>
+              <p>Loading restrictions...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Blocked Websites -->
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-ban"></i> Blocked Websites
+          </div>
+          <div id="blockedSites">
+            <div class="empty-state">
+              <i class="fa-solid fa-spinner fa-spin"></i>
+              <p>Loading blocked sites...</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      let currentUserId = null;
+
+      document.addEventListener("DOMContentLoaded", async () => {
+        await loadUserInfo();
+        await loadRestrictions();
+        updateSystemStats();
+        setInterval(updateSystemStats, 2000);
+      });
+
+      async function loadUserInfo() {
+        try {
+          const response = await fetch("/api/auth/session");
+          const data = await response.json();
+          if (data.loggedIn) {
+            document.getElementById("userEmail").textContent = data.email;
+            currentUserId = data.userId;
+          }
+        } catch (error) {
+          console.error("Failed to load user info:", error);
+        }
+      }
+
+      async function loadRestrictions() {
+        if (!currentUserId) return;
+
+        try {
+          // Load time-based restrictions using query parameter
+          const restrictionsResp = await fetch(
+            `/api/restrictions?userId=${currentUserId}`
+          );
+          const restrictions = await restrictionsResp.json();
+
+          const timeContainer = document.getElementById("timeRestrictions");
+
+          if (
+            !restrictions.internet ||
+            !restrictions.internet.enabled ||
+            !restrictions.internet.schedule ||
+            restrictions.internet.schedule.length === 0
+          ) {
+            timeContainer.innerHTML = `
+              <div class="empty-state">
+                <i class="fa-solid fa-check-circle" style="color: var(--success)"></i>
+                <p>No time restrictions applied</p>
+              </div>
+            `;
+          } else {
+            timeContainer.innerHTML = restrictions.internet.schedule
+              .map(
+                (schedule) => `
+              <div class="restriction-item ${
+                schedule.allowed ? "" : "blocked"
+              }">
+                <div class="title">
+                  ${
+                    schedule.allowed
+                      ? '<i class="fa-solid fa-check-circle" style="color: var(--success)"></i> Internet Allowed'
+                      : '<i class="fa-solid fa-ban" style="color: var(--danger)"></i> Internet Blocked'
+                  }
+                </div>
+                <div class="detail">
+                  <strong>Days:</strong> ${schedule.day}
+                </div>
+                <div class="detail">
+                  <strong>Time:</strong> 
+                  <span class="time-badge">${schedule.startTime}</span> 
+                  to 
+                  <span class="time-badge">${schedule.endTime}</span>
+                </div>
+              </div>
+            `
+              )
+              .join("");
+          }
+
+          // Load blocked sites
+          const blockedResp = await fetch(
+            `/api/blocked-sites?userId=${currentUserId}`
+          );
+          const blockedSites = await blockedResp.json();
+
+          const globalResp = await fetch("/api/global-blocked-sites");
+          const globalSites = await globalResp.json();
+
+          const allBlocked = [...(blockedSites || []), ...(globalSites || [])];
+          const uniqueBlocked = [...new Set(allBlocked)];
+
+          const sitesContainer = document.getElementById("blockedSites");
+
+          if (uniqueBlocked.length === 0) {
+            sitesContainer.innerHTML = `
+              <div class="empty-state">
+                <i class="fa-solid fa-check-circle" style="color: var(--success)"></i>
+                <p>No blocked sites</p>
+              </div>
+            `;
+          } else {
+            sitesContainer.innerHTML = uniqueBlocked
+              .map(
+                (site) => `
+              <div class="blocked-site">
+                <i class="fa-solid fa-ban"></i>
+                <span>${site}</span>
+              </div>
+            `
+              )
+              .join("");
+          }
+        } catch (error) {
+          console.error("Failed to load restrictions:", error);
+
+          // Show error state
+          document.getElementById("timeRestrictions").innerHTML = `
+            <div class="empty-state">
+              <i class="fa-solid fa-exclamation-triangle" style="color: var(--danger)"></i>
+              <p>Failed to load restrictions</p>
+            </div>
+          `;
+
+          document.getElementById("blockedSites").innerHTML = `
+            <div class="empty-state">
+              <i class="fa-solid fa-exclamation-triangle" style="color: var(--danger)"></i>
+              <p>Failed to load blocked sites</p>
+            </div>
+          `;
+        }
+      }
+
+      async function updateSystemStats() {
+        try {
+          const response = await fetch("/api/system/stats");
+          const data = await response.json();
+
+          document.getElementById("cpuVal").textContent = data.cpu + "%";
+          document.getElementById("cpuBar").style.width = data.cpu + "%";
+
+          document.getElementById("memVal").textContent = data.memory + "%";
+          document.getElementById("memBar").style.width = data.memory + "%";
+
+          document.getElementById("diskVal").textContent = data.disk + "%";
+          document.getElementById("diskBar").style.width = data.disk + "%";
+        } catch (error) {
+          console.error("Failed to update system stats:", error);
+        }
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AuthTrack - Sign Up</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="/static/css/style.css" />
+  </head>
+  <body>
+    <div class="login-container">
+      <div class="login-box">
+        <div class="logo" style="justify-content: center; margin-bottom: 20px">
+          <i class="fa-solid fa-network-wired"></i> AuthTrack
+        </div>
+        <h1>Create Account</h1>
+        <p class="subtitle">Sign up to start monitoring your network</p>
+
+        <div id="errorMsg" class="alert alert-danger" style="display: none">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <span id="errorText"></span>
+        </div>
+
+        <div id="successMsg" class="alert alert-success" style="display: none">
+          <i class="fa-solid fa-circle-check"></i>
+          <span id="successText"></span>
+        </div>
+
+        <form id="signupForm">
+          <div class="form-group">
+            <label for="name">Full Name</label>
+            <input
+              type="text"
+              id="name"
+              class="form-control"
+              placeholder="Your name"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="email">Email Address</label>
+            <input
+              type="email"
+              id="email"
+              class="form-control"
+              placeholder="you@example.com"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input
+              type="password"
+              id="password"
+              class="form-control"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="confirmPassword">Confirm Password</label>
+            <input
+              type="password"
+              id="confirmPassword"
+              class="form-control"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            class="btn btn-primary"
+            style="width: 100%; margin-top: 10px"
+          >
+            <i class="fa-solid fa-user-plus"></i> Sign Up
+          </button>
+        </form>
+
+        <p
+          style="
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: var(--text-muted);
+          "
+        >
+          Already have an account?
+          <a
+            href="/login"
+            style="
+              color: var(--primary-color);
+              text-decoration: none;
+              font-weight: 500;
+            "
+            >Sign in</a
+          >
+        </p>
+      </div>
+    </div>
+
+    <script type="module">
+      import { auth } from "/static/js/firebase-config.js";
+      import {
+        createUserWithEmailAndPassword,
+        updateProfile,
+      } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+      const form = document.getElementById("signupForm");
+      const errorMsg = document.getElementById("errorMsg");
+      const errorText = document.getElementById("errorText");
+      const successMsg = document.getElementById("successMsg");
+      const successText = document.getElementById("successText");
+
+      function showError(msg) {
+        errorText.textContent = msg;
+        errorMsg.style.display = "flex";
+        successMsg.style.display = "none";
+      }
+
+      function showSuccess(msg) {
+        successText.textContent = msg;
+        successMsg.style.display = "flex";
+        errorMsg.style.display = "none";
+      }
+
+      function clearMessages() {
+        errorMsg.style.display = "none";
+        successMsg.style.display = "none";
+      }
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        clearMessages();
+
+        const name = document.getElementById("name").value.trim();
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
+        const confirmPassword =
+          document.getElementById("confirmPassword").value;
+
+        if (password !== confirmPassword) {
+          showError("Passwords do not match");
+          return;
+        }
+
+        try {
+          // Create user in Firebase Authentication
+          const userCredential = await createUserWithEmailAndPassword(
+            auth,
+            email,
+            password
+          );
+          const user = userCredential.user;
+
+          // Optionally set display name in Firebase Auth
+          if (name) {
+            try {
+              await updateProfile(user, { displayName: name });
+            } catch (e) {
+              console.warn("Unable to update display name:", e);
+            }
+          }
+
+          // Create corresponding user record in Realtime Database via backend
+          const resp = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: email,
+              userId: user.uid,
+              displayName: name,
+            }),
+          });
+
+          const data = await resp.json();
+
+          if (!resp.ok || !data.success) {
+            // If backend fails, also clean up Firebase Auth user? For now, just show error.
+            console.error("Register API error:", data);
+            showError(
+              data.message ||
+                "Failed to complete registration. Please contact admin."
+            );
+            return;
+          }
+
+          showSuccess("Account created successfully. You can now sign in.");
+
+          // Redirect to login after a short delay
+          setTimeout(() => {
+            window.location.href = "/login";
+          }, 1500);
+        } catch (error) {
+          console.error("Signup error:", error);
+          if (error.code === "auth/email-already-in-use") {
+            showError("This email is already registered");
+          } else if (error.code === "auth/invalid-email") {
+            showError("Invalid email address");
+          } else if (error.code === "auth/weak-password") {
+            showError("Password is too weak (min 6 characters)");
+          } else {
+            showError("Sign up failed. Please try again.");
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AuthTrack - Contact Admin</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="/static/css/style.css" />
+    <style>
+      .alert {
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        display: none;
+      }
+      .alert.show {
+        display: block;
+      }
+      .alert.success {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success);
+        border-left: 4px solid var(--success);
+      }
+      .alert.error {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--danger);
+        border-left: 4px solid var(--danger);
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--text-main);
+        font-weight: 500;
+        font-size: 14px;
+      }
+      .form-group input,
+      .form-group textarea {
+        width: 100%;
+        padding: 12px;
+        background: var(--bg-dark);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text-main);
+        font-size: 14px;
+        font-family: inherit;
+      }
+      .form-group textarea {
+        resize: vertical;
+        min-height: 120px;
+      }
+      .form-group input:focus,
+      .form-group textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+      }
+      .btn-submit {
+        background: var(--primary);
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      .btn-submit:hover {
+        background: var(--primary-hover);
+      }
+      .btn-submit:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="logo">
+          <i class="fa-solid fa-network-wired"></i> AuthTrack
+        </div>
+        <nav>
+          <a href="/user/dashboard" class="nav-item">
+            <i class="fa-solid fa-chart-line"></i> Dashboard
+          </a>
+          <a href="/user/traffic" class="nav-item">
+            <i class="fa-solid fa-signal"></i> My Traffic
+          </a>
+          <a href="/user/restrictions" class="nav-item">
+            <i class="fa-solid fa-shield-halved"></i> My Restrictions
+          </a>
+          <a href="/user/requests" class="nav-item active">
+            <i class="fa-solid fa-envelope"></i> Contact Admin
+          </a>
+          <a href="/user/profile" class="nav-item">
+            <i class="fa-solid fa-user"></i> My Profile
+          </a>
+          <a href="/logout" class="nav-item" style="margin-top: auto">
+            <i class="fa-solid fa-right-from-bracket"></i> Logout
+          </a>
+        </nav>
+
+        <!-- System Stats -->
+        <div style="margin-top: auto">
+          <div class="system-stats">
+            <div class="title">
+              <i class="fa-solid fa-microchip"></i> System Status
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>CPU</span>
+                <span id="cpuVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill cpu" id="cpuBar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>Memory</span>
+                <span id="memVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill memory" id="memBar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>Disk</span>
+                <span id="diskVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill disk" id="diskBar" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <header class="header">
+          <h1>Contact Admin</h1>
+          <div class="header-actions">
+            <span class="user-email" id="userEmail">Loading...</span>
+          </div>
+        </header>
+
+        <!-- Message History -->
+        <div class="card" style="margin-bottom: 20px">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-history"></i> Message History</h3>
+          </div>
+          <div class="card-body">
+            <div
+              id="messageHistory"
+              style="max-height: 400px; overflow-y: auto"
+            >
+              <div class="empty-state">
+                <i class="fa-solid fa-inbox"></i>
+                <p>Loading messages...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Send Request Form -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-paper-plane"></i> Send Request</h3>
+          </div>
+          <div class="card-body">
+            <div id="requestAlert" class="alert"></div>
+            <form onsubmit="sendRequest(event)">
+              <div class="form-group">
+                <label for="requestSubject">
+                  <i class="fa-solid fa-tag"></i> Subject
+                </label>
+                <input
+                  type="text"
+                  id="requestSubject"
+                  placeholder="Enter request subject"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="requestMessage">
+                  <i class="fa-solid fa-message"></i> Message
+                </label>
+                <textarea
+                  id="requestMessage"
+                  placeholder="Describe your request or issue..."
+                  required
+                ></textarea>
+              </div>
+              <button type="submit" class="btn-submit" id="sendRequestBtn">
+                <i class="fa-solid fa-paper-plane"></i> Send Request
+              </button>
+            </form>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      let currentUserId = null;
+      let currentUserEmail = null;
+
+      document.addEventListener("DOMContentLoaded", async () => {
+        await loadUserInfo();
+        await loadMessageHistory();
+        updateSystemStats();
+        setInterval(updateSystemStats, 2000);
+        setInterval(loadMessageHistory, 10000); // Refresh messages every 10 seconds
+      });
+
+      async function loadUserInfo() {
+        try {
+          const response = await fetch("/api/auth/session");
+          const data = await response.json();
+          if (data.loggedIn) {
+            document.getElementById("userEmail").textContent = data.email;
+            currentUserId = data.userId;
+            currentUserEmail = data.email;
+          }
+        } catch (error) {
+          console.error("Failed to load user info:", error);
+        }
+      }
+
+      async function loadMessageHistory() {
+        try {
+          const response = await fetch("/api/messages");
+          const messages = await response.json();
+
+          const container = document.getElementById("messageHistory");
+
+          if (!messages || messages.length === 0) {
+            container.innerHTML = `
+              <div class="empty-state">
+                <i class="fa-solid fa-inbox"></i>
+                <p>No messages yet. Send your first request!</p>
+              </div>
+            `;
+            return;
+          }
+
+          // Sort by timestamp, newest first
+          messages.sort(
+            (a, b) => new Date(b.timestamp) - new Date(a.timestamp),
+          );
+
+          container.innerHTML = messages
+            .map((msg) => {
+              const isFromAdmin = msg.type === "reply";
+              const date = new Date(msg.timestamp).toLocaleString();
+
+              return `
+              <div style="padding: 15px; margin-bottom: 15px; background: var(--bg-secondary); border-radius: 8px; border-left: 4px solid ${isFromAdmin ? "var(--primary)" : "var(--success)"};">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <div>
+                    <strong style="color: ${isFromAdmin ? "var(--primary)" : "var(--success)"};">
+                      <i class="fa-solid ${isFromAdmin ? "fa-shield" : "fa-user"}"></i>
+                      ${isFromAdmin ? "Admin Reply" : "Your Request"}
+                    </strong>
+                  </div>
+                  <span style="font-size: 11px; color: var(--text-muted);">
+                    <i class="fa-solid fa-clock"></i> ${date}
+                  </span>
+                </div>
+                <div style="margin-bottom: 8px;">
+                  <strong style="font-size: 14px; color: var(--text);">${msg.subject || "No Subject"}</strong>
+                </div>
+                <div style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                  ${(msg.content || msg.message || "").replace(/\n/g, "<br>")}
+                </div>
+                ${
+                  !msg.read && isFromAdmin
+                    ? `
+                  <div style="margin-top: 10px;">
+                    <span style="background: var(--primary); color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px;">
+                      <i class="fa-solid fa-star"></i> New
+                    </span>
+                  </div>
+                `
+                    : ""
+                }
+              </div>
+            `;
+            })
+            .join("");
+
+          // Mark unread admin replies as read
+          messages.forEach(async (msg) => {
+            if (msg.type === "reply" && !msg.read) {
+              try {
+                await fetch(`/api/messages/${msg.id}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ read: true }),
+                });
+              } catch (e) {
+                console.error("Failed to mark as read:", e);
+              }
+            }
+          });
+        } catch (error) {
+          console.error("Failed to load message history:", error);
+        }
+      }
+
+      async function sendRequest(event) {
+        event.preventDefault();
+
+        const subject = document.getElementById("requestSubject").value;
+        const message = document.getElementById("requestMessage").value;
+        const btn = document.getElementById("sendRequestBtn");
+        const alert = document.getElementById("requestAlert");
+
+        btn.disabled = true;
+        btn.innerHTML =
+          '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+
+        try {
+          const response = await fetch("/api/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userEmail: currentUserEmail,
+              userId: currentUserId,
+              subject: subject,
+              message: message,
+              timestamp: new Date().toISOString(),
+              status: "pending",
+            }),
+          });
+
+          if (response.ok) {
+            alert.className = "alert success show";
+            alert.innerHTML =
+              '<i class="fa-solid fa-check-circle"></i> Request sent successfully!';
+            document.getElementById("requestSubject").value = "";
+            document.getElementById("requestMessage").value = "";
+
+            // Reload message history
+            await loadMessageHistory();
+          } else {
+            throw new Error("Failed to send request");
+          }
+        } catch (error) {
+          alert.className = "alert error show";
+          alert.innerHTML =
+            '<i class="fa-solid fa-exclamation-circle"></i> Failed to send request. Please try again.';
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML =
+            '<i class="fa-solid fa-paper-plane"></i> Send Request';
+          setTimeout(() => (alert.className = "alert"), 5000);
+        }
+      }
+
+      async function updateSystemStats() {
+        try {
+          const response = await fetch("/api/system/stats");
+          const data = await response.json();
+
+          document.getElementById("cpuVal").textContent = data.cpu + "%";
+          document.getElementById("cpuBar").style.width = data.cpu + "%";
+
+          document.getElementById("memVal").textContent = data.memory + "%";
+          document.getElementById("memBar").style.width = data.memory + "%";
+
+          document.getElementById("diskVal").textContent = data.disk + "%";
+          document.getElementById("diskBar").style.width = data.disk + "%";
+        } catch (error) {
+          console.error("Failed to update system stats:", error);
+        }
+      }
+    </script>
+  </body>
+</html>

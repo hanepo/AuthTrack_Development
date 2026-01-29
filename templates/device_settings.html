@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AuthTrack - Device Settings</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="/static/css/style.css" />
+  </head>
+  <body>
+    <div class="app-container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="logo">
+          <i class="fa-solid fa-network-wired"></i> AuthTrack
+        </div>
+        <nav>
+          <a href="/dashboard" class="nav-item">
+            <i class="fa-solid fa-chart-line"></i> Dashboard
+          </a>
+          <a href="/traffic" class="nav-item">
+            <i class="fa-solid fa-signal"></i> Traffic Analysis
+          </a>
+          <a href="/devices" class="nav-item active">
+            <i class="fa-solid fa-laptop"></i> Device Settings
+          </a>
+          <a href="/logs" class="nav-item">
+            <i class="fa-solid fa-file-lines"></i> Logs & Reports
+          </a>
+          <a href="/messages" class="nav-item">
+            <i class="fa-solid fa-envelope"></i> User Requests
+          </a>
+          <a href="/profile" class="nav-item">
+            <i class="fa-solid fa-user"></i> Profile
+          </a>
+          <a href="/logout" class="nav-item" style="margin-top: auto">
+            <i class="fa-solid fa-right-from-bracket"></i> Logout
+          </a>
+        </nav>
+
+        <!-- System Stats moved to bottom -->
+        <div style="margin-top: auto">
+          <div class="system-stats">
+            <div class="title">
+              <i class="fa-solid fa-microchip"></i> System Status
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>CPU</span>
+                <span id="cpuVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill cpu" id="cpuBar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>Memory</span>
+                <span id="memVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill memory" id="memBar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>Disk</span>
+                <span id="diskVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill disk" id="diskBar" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <header>
+          <div class="page-title">
+            <h1>Device Settings</h1>
+          </div>
+          <div style="display: flex; align-items: center; gap: 15px">
+            <button
+              class="btn btn-primary admin-only"
+              onclick="openAddDeviceModal()"
+              style="display: none"
+            >
+              <i class="fa-solid fa-plus"></i> Add Device
+            </button>
+            <span style="color: var(--text-muted); font-size: 14px"
+              >{{ user_email }}</span
+            >
+          </div>
+        </header>
+
+        <div class="grid-2">
+          <!-- Devices List -->
+          <div class="card">
+            <div class="card-title">
+              <i class="fa-solid fa-server"></i> Registered Devices
+            </div>
+            <div id="devicesList">
+              <div class="empty-state">
+                <i class="fa-solid fa-server"></i>
+                <p>Loading devices...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- URL Blocking (Admin Only) -->
+          <div
+            class="card admin-only"
+            id="urlBlockingCard"
+            style="display: none"
+          >
+            <div class="card-title">
+              <i class="fa-solid fa-ban"></i> Global URL Blocking
+            </div>
+            <p
+              style="
+                font-size: 12px;
+                color: var(--text-muted);
+                margin-bottom: 15px;
+              "
+            >
+              Block websites for all users. Enter one domain per line.
+            </p>
+            <textarea
+              id="globalBlockedSites"
+              class="form-control"
+              rows="8"
+              placeholder="example.com&#10;facebook.com&#10;twitter.com"
+            ></textarea>
+            <button
+              class="btn btn-primary"
+              style="margin-top: 10px"
+              onclick="saveGlobalBlocked()"
+            >
+              <i class="fa-solid fa-save"></i> Save Rules
+            </button>
+          </div>
+        </div>
+
+        <!-- Time Restrictions (Admin Only) -->
+        <div
+          class="card admin-only"
+          id="restrictionsCard"
+          style="display: none"
+        >
+          <div class="card-title">
+            <i class="fa-solid fa-clock"></i> Time-Based Restrictions
+          </div>
+          <p
+            style="
+              font-size: 12px;
+              color: var(--text-muted);
+              margin-bottom: 15px;
+            "
+          >
+            Set internet access schedules for users.
+          </p>
+
+          <div class="grid-2">
+            <div class="form-group">
+              <label>Select User</label>
+              <select id="restrictionUser" class="form-control">
+                <option value="">-- Select User --</option>
+              </select>
+            </div>
+            <div></div>
+          </div>
+
+          <div id="restrictionSettings" style="display: none">
+            <h4 style="margin: 20px 0 15px; font-size: 14px">
+              Internet Schedule
+            </h4>
+            <div class="grid-3">
+              <div class="form-group">
+                <label>Days</label>
+                <select id="restrictDays" class="form-control">
+                  <option value="all">All Days</option>
+                  <option value="weekday">Weekdays</option>
+                  <option value="weekend">Weekends</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Start Time</label>
+                <input
+                  type="time"
+                  id="restrictStart"
+                  class="form-control"
+                  value="09:00"
+                />
+              </div>
+              <div class="form-group">
+                <label>End Time</label>
+                <input
+                  type="time"
+                  id="restrictEnd"
+                  class="form-control"
+                  value="17:00"
+                />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label style="display: flex; align-items: center; gap: 10px">
+                <input type="checkbox" id="restrictAllow" checked />
+                Allow internet during this time
+              </label>
+            </div>
+
+            <h4 style="margin: 20px 0 15px; font-size: 14px">
+              Blocked Sites for This User
+            </h4>
+            <textarea
+              id="userBlockedSites"
+              class="form-control"
+              rows="4"
+              placeholder="facebook.com&#10;youtube.com"
+            ></textarea>
+
+            <h4
+              style="
+                margin: 30px 0 15px;
+                font-size: 14px;
+                color: var(--primary);
+              "
+            >
+              <i class="fa-solid fa-clock"></i> Website Time Restrictions
+            </h4>
+            <p
+              style="
+                font-size: 12px;
+                color: var(--text-muted);
+                margin-bottom: 15px;
+              "
+            >
+              Block specific websites during certain hours. Example: Block
+              YouTube from 9 AM to 5 PM.
+            </p>
+
+            <div id="websiteRestrictions">
+              <!-- Dynamic website restrictions will be added here -->
+            </div>
+
+            <button
+              class="btn btn-primary"
+              style="margin-bottom: 15px"
+              onclick="addWebsiteRestriction()"
+            >
+              <i class="fa-solid fa-plus"></i> Add Website Restriction
+            </button>
+
+            <button
+              class="btn btn-primary"
+              style="margin-top: 15px"
+              onclick="saveUserRestrictions()"
+            >
+              <i class="fa-solid fa-save"></i> Save All Restrictions
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Add Device Modal -->
+    <div class="modal-overlay" id="addDeviceModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h3><i class="fa-solid fa-plus"></i> Add Device</h3>
+          <button class="modal-close" onclick="closeAddDeviceModal()">
+            &times;
+          </button>
+        </div>
+        <form id="addDeviceForm">
+          <div class="form-group">
+            <label>Device Name</label>
+            <input
+              type="text"
+              id="deviceName"
+              class="form-control"
+              placeholder="e.g., John's Laptop"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label>MAC Address (optional)</label>
+            <input
+              type="text"
+              id="deviceMac"
+              class="form-control"
+              placeholder="AA:BB:CC:DD:EE:FF"
+            />
+          </div>
+          <div class="form-group">
+            <label>IP Address (optional)</label>
+            <input
+              type="text"
+              id="deviceIp"
+              class="form-control"
+              placeholder="192.168.1.100"
+            />
+          </div>
+          <div class="form-group">
+            <label>Device Type</label>
+            <select id="deviceType" class="form-control">
+              <option value="computer">Computer</option>
+              <option value="phone">Phone</option>
+              <option value="tablet">Tablet</option>
+              <option value="iot">IoT Device</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary">
+            <i class="fa-solid fa-plus"></i> Add Device
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <script type="module">
+      import { auth } from "/static/js/firebase-config.js";
+      import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+      let userRole = "user";
+      let devices = [];
+
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+          window.location.href = "/login";
+          return;
+        }
+
+        const sessionRes = await fetch("/api/auth/session");
+        const session = await sessionRes.json();
+        userRole = session.role;
+
+        // Redirect non-admin users - this is an admin-only page
+        if (userRole !== "admin") {
+          window.location.href = "/dashboard";
+          return;
+        }
+
+        // Show admin elements
+        document.querySelectorAll(".admin-only").forEach((el) => {
+          el.style.display = "";
+        });
+        loadUsers();
+        loadGlobalBlocked();
+        loadDevices();
+      });
+
+      async function loadDevices() {
+        const res = await fetch("/api/devices");
+        devices = await res.json();
+        renderDevices();
+      }
+
+      function renderDevices() {
+        const container = document.getElementById("devicesList");
+
+        if (devices.length === 0) {
+          container.innerHTML = `
+          <div class="empty-state">
+            <i class="fa-solid fa-server"></i>
+            <p>No devices registered</p>
+          </div>
+        `;
+          return;
+        }
+
+        container.innerHTML = devices
+          .map(
+            (device) => `
+        <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-bottom: 1px solid var(--border);">
+          <div style="width: 40px; height: 40px; background: rgba(59, 130, 246, 0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+            <i class="fa-solid ${getDeviceIcon(
+              device.type
+            )}" style="color: var(--primary);"></i>
+          </div>
+          <div style="flex: 1;">
+            <div style="font-size: 14px; font-weight: 500;">${
+              device.name || "Unknown"
+            }</div>
+            <div style="font-size: 11px; color: var(--text-muted);">
+              ${device.ip || "-"} ${device.mac ? "| " + device.mac : ""}
+            </div>
+          </div>
+          <span class="status ${
+            device.blocked ? "status-blocked" : "status-online"
+          }">
+            ${device.blocked ? "Blocked" : "Active"}
+          </span>
+          ${
+            userRole === "admin"
+              ? `
+            <button class="btn btn-sm ${
+              device.blocked ? "btn-success" : "btn-danger"
+            }" onclick="toggleBlock('${device.id}', ${!device.blocked})">
+              <i class="fa-solid ${device.blocked ? "fa-check" : "fa-ban"}"></i>
+            </button>
+            <button class="btn btn-sm btn-outline" onclick="deleteDevice('${
+              device.id
+            }')">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          `
+              : ""
+          }
+        </div>
+      `
+          )
+          .join("");
+      }
+
+      function getDeviceIcon(type) {
+        const icons = {
+          computer: "fa-desktop",
+          phone: "fa-mobile",
+          tablet: "fa-tablet",
+          iot: "fa-microchip",
+          other: "fa-server",
+        };
+        return icons[type] || "fa-server";
+      }
+
+      async function loadUsers() {
+        const res = await fetch("/api/users");
+        const users = await res.json();
+
+        const select = document.getElementById("restrictionUser");
+        users.forEach((user) => {
+          const option = document.createElement("option");
+          option.value = user.id;
+          option.textContent = user.email;
+          select.appendChild(option);
+        });
+      }
+
+      async function loadGlobalBlocked() {
+        const res = await fetch("/api/global-blocked-sites");
+        const sites = await res.json();
+        document.getElementById("globalBlockedSites").value = (
+          sites || []
+        ).join("\n");
+      }
+
+      // Toggle device block
+      window.toggleBlock = async function (deviceId, blocked) {
+        await fetch(`/api/devices/${deviceId}/block`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ blocked }),
+        });
+        loadDevices();
+      };
+
+      // Delete device
+      window.deleteDevice = async function (deviceId) {
+        if (!confirm("Delete this device?")) return;
+        await fetch(`/api/devices/${deviceId}`, { method: "DELETE" });
+        loadDevices();
+      };
+
+      // Add device modal
+      window.openAddDeviceModal = function () {
+        document.getElementById("addDeviceModal").classList.add("active");
+      };
+
+      window.closeAddDeviceModal = function () {
+        document.getElementById("addDeviceModal").classList.remove("active");
+      };
+
+      document
+        .getElementById("addDeviceForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const device = {
+            name: document.getElementById("deviceName").value,
+            mac: document.getElementById("deviceMac").value,
+            ip: document.getElementById("deviceIp").value,
+            type: document.getElementById("deviceType").value,
+            blocked: false,
+          };
+
+          await fetch("/api/devices", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(device),
+          });
+
+          closeAddDeviceModal();
+          loadDevices();
+          document.getElementById("addDeviceForm").reset();
+        });
+
+      // Save global blocked sites
+      window.saveGlobalBlocked = async function () {
+        const text = document.getElementById("globalBlockedSites").value;
+        const sites = text
+          .split("\n")
+          .map((s) => s.trim())
+          .filter((s) => s);
+
+        await fetch("/api/global-blocked-sites", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(sites),
+        });
+
+        alert("Global blocked sites saved!");
+      };
+
+      // Restriction user selection
+      document
+        .getElementById("restrictionUser")
+        .addEventListener("change", async (e) => {
+          const userId = e.target.value;
+          const settings = document.getElementById("restrictionSettings");
+
+          if (!userId) {
+            settings.style.display = "none";
+            return;
+          }
+
+          settings.style.display = "block";
+
+          // Load existing restrictions
+          const restrictRes = await fetch(`/api/restrictions?userId=${userId}`);
+          const restrictions = await restrictRes.json();
+
+          if (
+            restrictions.internet &&
+            restrictions.internet.schedule &&
+            restrictions.internet.schedule[0]
+          ) {
+            const sched = restrictions.internet.schedule[0];
+            document.getElementById("restrictDays").value = sched.day || "all";
+            document.getElementById("restrictStart").value =
+              sched.startTime || "09:00";
+            document.getElementById("restrictEnd").value =
+              sched.endTime || "17:00";
+            document.getElementById("restrictAllow").checked =
+              sched.allowed !== false;
+          }
+
+          // Load blocked sites
+          const blockedRes = await fetch(`/api/blocked-sites?userId=${userId}`);
+          const blocked = await blockedRes.json();
+          document.getElementById("userBlockedSites").value = (
+            blocked || []
+          ).join("\n");
+
+          // Load website restrictions
+          loadWebsiteRestrictions(restrictions.websites || {});
+        });
+
+      // Website restriction counter for unique IDs
+      let websiteRestrictionCounter = 0;
+
+      // Add a new website restriction row
+      window.addWebsiteRestriction = function (
+        website = "",
+        days = "all",
+        startTime = "09:00",
+        endTime = "17:00",
+        blocked = true
+      ) {
+        const container = document.getElementById("websiteRestrictions");
+        const id = websiteRestrictionCounter++;
+
+        const div = document.createElement("div");
+        div.className = "website-restriction-item";
+        div.id = `website-restriction-${id}`;
+        div.style.cssText =
+          "background: var(--bg-secondary); padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border)";
+
+        div.innerHTML = `
+          <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 10px; align-items: end">
+            <div class="form-group" style="margin: 0">
+              <label style="font-size: 11px; color: var(--text-muted)">Website</label>
+              <input 
+                type="text" 
+                class="form-control website-input" 
+                placeholder="youtube.com" 
+                value="${website}"
+                style="font-size: 13px"
+              />
+            </div>
+            <div class="form-group" style="margin: 0">
+              <label style="font-size: 11px; color: var(--text-muted)">Days</label>
+              <select class="form-control days-input" style="font-size: 13px">
+                <option value="all" ${
+                  days === "all" ? "selected" : ""
+                }>All Days</option>
+                <option value="weekday" ${
+                  days === "weekday" ? "selected" : ""
+                }>Weekdays</option>
+                <option value="weekend" ${
+                  days === "weekend" ? "selected" : ""
+                }>Weekends</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin: 0">
+              <label style="font-size: 11px; color: var(--text-muted)">From</label>
+              <input 
+                type="time" 
+                class="form-control start-time-input" 
+                value="${startTime}"
+                style="font-size: 13px"
+              />
+            </div>
+            <div class="form-group" style="margin: 0">
+              <label style="font-size: 11px; color: var(--text-muted)">To</label>
+              <input 
+                type="time" 
+                class="form-control end-time-input" 
+                value="${endTime}"
+                style="font-size: 13px"
+              />
+            </div>
+            <button 
+              class="btn btn-danger" 
+              onclick="removeWebsiteRestriction(${id})"
+              style="padding: 8px 12px; font-size: 13px"
+              title="Remove"
+            >
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        `;
+
+        container.appendChild(div);
+      };
+
+      // Remove website restriction
+      window.removeWebsiteRestriction = function (id) {
+        const element = document.getElementById(`website-restriction-${id}`);
+        if (element) {
+          element.remove();
+        }
+      };
+
+      // Load website restrictions from data
+      function loadWebsiteRestrictions(websites) {
+        const container = document.getElementById("websiteRestrictions");
+        container.innerHTML = "";
+        websiteRestrictionCounter = 0;
+
+        if (websites && Object.keys(websites).length > 0) {
+          for (const [website, config] of Object.entries(websites)) {
+            if (config.schedule && config.schedule.length > 0) {
+              const sched = config.schedule[0];
+              addWebsiteRestriction(
+                website,
+                sched.day || "all",
+                sched.startTime || "09:00",
+                sched.endTime || "17:00",
+                config.blocked !== false
+              );
+            }
+          }
+        }
+      }
+
+      // Collect website restrictions from form
+      function collectWebsiteRestrictions() {
+        const websites = {};
+        const items = document.querySelectorAll(".website-restriction-item");
+
+        items.forEach((item) => {
+          const website = item.querySelector(".website-input").value.trim();
+          const days = item.querySelector(".days-input").value;
+          const startTime = item.querySelector(".start-time-input").value;
+          const endTime = item.querySelector(".end-time-input").value;
+
+          if (website) {
+            websites[website] = {
+              blocked: true,
+              schedule: [
+                {
+                  day: days,
+                  startTime: startTime,
+                  endTime: endTime,
+                },
+              ],
+            };
+          }
+        });
+
+        return websites;
+      }
+
+      // Save user restrictions
+      window.saveUserRestrictions = async function () {
+        const userId = document.getElementById("restrictionUser").value;
+        if (!userId) return;
+
+        const restrictions = {
+          internet: {
+            enabled: true,
+            schedule: [
+              {
+                day: document.getElementById("restrictDays").value,
+                startTime: document.getElementById("restrictStart").value,
+                endTime: document.getElementById("restrictEnd").value,
+                allowed: document.getElementById("restrictAllow").checked,
+              },
+            ],
+          },
+          websites: collectWebsiteRestrictions(),
+        };
+
+        await fetch(`/api/restrictions/${userId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(restrictions),
+        });
+
+        // Save blocked sites
+        const text = document.getElementById("userBlockedSites").value;
+        const sites = text
+          .split("\n")
+          .map((s) => s.trim())
+          .filter((s) => s);
+
+        await fetch(`/api/blocked-sites/${userId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(sites),
+        });
+
+        alert("User restrictions saved!");
+      };
+
+      // System stats update
+      async function updateSystemStats() {
+        try {
+          const response = await fetch("/api/system/stats");
+          const data = await response.json();
+
+          document.getElementById("cpuVal").textContent = data.cpu + "%";
+          document.getElementById("cpuBar").style.width = data.cpu + "%";
+
+          document.getElementById("memVal").textContent = data.memory + "%";
+          document.getElementById("memBar").style.width = data.memory + "%";
+
+          document.getElementById("diskVal").textContent = data.disk + "%";
+          document.getElementById("diskBar").style.width = data.disk + "%";
+        } catch (error) {
+          console.error("Failed to update system stats:", error);
+        }
+      }
+
+      // Update system stats every 2 seconds
+      setInterval(updateSystemStats, 2000);
+      updateSystemStats();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AuthTrack - Dashboard</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="/static/css/style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <div class="app-container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="logo">
+          <i class="fa-solid fa-network-wired"></i> AuthTrack
+        </div>
+        <nav>
+          <a href="/user/dashboard" class="nav-item active">
+            <i class="fa-solid fa-chart-line"></i> Dashboard
+          </a>
+          <a href="/user/traffic" class="nav-item">
+            <i class="fa-solid fa-signal"></i> My Traffic
+          </a>
+          <a href="/user/restrictions" class="nav-item">
+            <i class="fa-solid fa-shield-halved"></i> My Restrictions
+          </a>
+          <a href="/user/requests" class="nav-item">
+            <i class="fa-solid fa-envelope"></i> Contact Admin
+          </a>
+          <a href="/user/profile" class="nav-item">
+            <i class="fa-solid fa-user"></i> My Profile
+          </a>
+          <a href="/logout" class="nav-item" style="margin-top: auto">
+            <i class="fa-solid fa-right-from-bracket"></i> Logout
+          </a>
+        </nav>
+
+        <!-- System Stats -->
+        <div style="margin-top: auto">
+          <div class="system-stats">
+            <div class="title">
+              <i class="fa-solid fa-microchip"></i> System Status
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>CPU</span>
+                <span id="cpuVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill cpu" id="cpuBar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>Memory</span>
+                <span id="memVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill memory" id="memBar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>Disk</span>
+                <span id="diskVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill disk" id="diskBar" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <header>
+          <div class="page-title">
+            <h1>Dashboard</h1>
+          </div>
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 15px;
+              margin-left: auto;
+            "
+          >
+            <span
+              style="color: var(--text-muted); font-size: 14px"
+              id="userEmail"
+              >Loading...</span
+            >
+          </div>
+        </header>
+
+        <!-- Stats Cards -->
+        <div class="grid-4" style="margin-bottom: 20px">
+          <div class="stat-card">
+            <div class="icon blue"><i class="fa-solid fa-ethernet"></i></div>
+            <h3 id="statsPackets">0</h3>
+            <p>Packets Captured</p>
+          </div>
+          <div class="stat-card">
+            <div class="icon green"><i class="fa-solid fa-hard-drive"></i></div>
+            <h3 id="statsBytes">0 MB</h3>
+            <p>Data Transferred</p>
+          </div>
+          <div class="stat-card">
+            <div class="icon orange"><i class="fa-solid fa-globe"></i></div>
+            <h3 id="statsConnections">0</h3>
+            <p>Active Connections</p>
+          </div>
+          <div class="stat-card">
+            <div class="icon purple"><i class="fa-solid fa-users"></i></div>
+            <h3 id="statsOnlineUsers">0</h3>
+            <p>Online Users</p>
+          </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid-2" style="margin-bottom: 20px">
+          <!-- Network Activity Chart -->
+          <div class="card">
+            <div class="card-title">
+              <i class="fa-solid fa-chart-line"></i> Network Activity
+            </div>
+            <div style="height: 250px; position: relative">
+              <canvas id="activityChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="card">
+            <div class="card-title">
+              <i class="fa-solid fa-clock-rotate-left"></i> Recent Activity
+            </div>
+            <div
+              id="recentActivity"
+              style="max-height: 250px; overflow-y: auto"
+            >
+              <div class="empty-state">
+                <i class="fa-solid fa-clock"></i>
+                <p>Loading activity...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Users -->
+        <div class="card">
+          <div class="card-title">
+            <i
+              class="fa-solid fa-circle"
+              style="color: var(--success); font-size: 10px"
+            ></i>
+            Active Users
+          </div>
+          <div id="activeUsersList" style="max-height: 300px; overflow-y: auto">
+            <div class="empty-state">
+              <i class="fa-solid fa-user-slash"></i>
+              <p>Loading users...</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      let activityChart = null;
+
+      document.addEventListener("DOMContentLoaded", async () => {
+        await loadUserInfo();
+        await loadDashboardData();
+        updateSystemStats();
+        sendHeartbeat(); // Send initial heartbeat
+        setInterval(updateSystemStats, 2000);
+        setInterval(loadDashboardData, 5000);
+        setInterval(sendHeartbeat, 30000); // Send heartbeat every 30 seconds
+      });
+
+      async function sendHeartbeat() {
+        try {
+          await fetch("/api/auth/heartbeat", { method: "POST" });
+        } catch (error) {
+          console.error("Failed to send heartbeat:", error);
+        }
+      }
+
+      async function loadUserInfo() {
+        try {
+          const response = await fetch("/api/auth/session");
+          const data = await response.json();
+          if (data.loggedIn) {
+            document.getElementById("userEmail").textContent = data.email;
+          }
+        } catch (error) {
+          console.error("Failed to load user info:", error);
+        }
+      }
+
+      async function loadDashboardData() {
+        await Promise.all([
+          loadStats(),
+          loadRecentActivity(),
+          loadActiveUsers(),
+        ]);
+      }
+
+      async function loadStats() {
+        try {
+          const response = await fetch("/api/network/stats");
+          const data = await response.json();
+
+          document.getElementById("statsPackets").textContent =
+            data.total_packets || 0;
+          document.getElementById("statsBytes").textContent =
+            ((data.total_bytes || 0) / (1024 * 1024)).toFixed(2) + " MB";
+          document.getElementById("statsConnections").textContent =
+            data.active_connections || 0;
+
+          const usersResp = await fetch("/api/online-devices");
+          const usersData = await usersResp.json();
+
+          // Count only devices with status='online'
+          const onlineCount = Object.values(usersData).filter(
+            (d) => d && d.status === "online",
+          ).length;
+
+          document.getElementById("statsOnlineUsers").textContent = onlineCount;
+
+          updateActivityChart(data);
+        } catch (error) {
+          console.error("Failed to load stats:", error);
+        }
+      }
+
+      function updateActivityChart(data) {
+        const ctx = document.getElementById("activityChart");
+        if (!ctx) return;
+
+        const chartData = {
+          labels: ["Packets", "MB Transferred", "Connections"],
+          datasets: [
+            {
+              label: "Network Activity",
+              data: [
+                data.total_packets || 0,
+                parseFloat(
+                  ((data.total_bytes || 0) / (1024 * 1024)).toFixed(2),
+                ),
+                (data.active_connections || 0) * 10, // Multiply by 10 to make it more visible
+              ],
+              backgroundColor: [
+                "rgba(255, 255, 255, 0.8)",
+                "rgba(255, 255, 255, 0.8)",
+                "rgba(255, 255, 255, 0.8)",
+              ],
+              borderColor: [
+                "rgba(255, 255, 255, 1)",
+                "rgba(255, 255, 255, 1)",
+                "rgba(255, 255, 255, 1)",
+              ],
+              borderWidth: 1,
+            },
+          ],
+        };
+
+        if (activityChart) {
+          activityChart.data = chartData;
+          activityChart.update();
+        } else {
+          activityChart = new Chart(ctx, {
+            type: "bar",
+            data: chartData,
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: function (context) {
+                      let label = context.label || "";
+                      let value = context.parsed.y;
+
+                      if (label === "Connections") {
+                        // Divide back by 10 for display
+                        return label + ": " + (value / 10).toFixed(0);
+                      }
+                      return label + ": " + value;
+                    },
+                  },
+                },
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  grid: { color: "rgba(255, 255, 255, 0.1)" },
+                  ticks: { color: "rgba(255, 255, 255, 0.8)" },
+                },
+                x: {
+                  grid: { display: false },
+                  ticks: { color: "rgba(255, 255, 255, 0.8)" },
+                },
+              },
+            },
+          });
+        }
+      }
+
+      async function loadRecentActivity() {
+        try {
+          const response = await fetch("/api/activity/logs");
+          const data = await response.json();
+
+          const container = document.getElementById("recentActivity");
+
+          if (!data.logs || data.logs.length === 0) {
+            container.innerHTML = `
+              <div class="empty-state">
+                <i class="fa-solid fa-check-circle" style="color: var(--success)"></i>
+                <p>No recent activity</p>
+              </div>
+            `;
+            return;
+          }
+
+          container.innerHTML = data.logs
+            .slice(0, 5)
+            .map(
+              (log) => `
+            <div class="alert-item ${
+              log.action === "blocked" ? "danger" : "info"
+            }" style="margin-bottom: 10px; padding: 12px; border-radius: 8px; background: var(--bg-secondary); border-left: 3px solid ${
+              log.action === "blocked" ? "var(--danger)" : "var(--primary)"
+            };">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                <i class="fa-solid ${getActionIcon(
+                  log.action,
+                )}" style="color: ${
+                  log.action === "blocked" ? "var(--danger)" : "var(--primary)"
+                }; font-size: 14px;"></i>
+                <span style="color: var(--text); font-weight: 500; font-size: 13px;">${log.action.toUpperCase()}</span>
+              </div>
+              <div style="color: var(--text-muted); font-size: 12px; margin-left: 22px; margin-bottom: 4px;">${
+                log.details || "No details available"
+              }</div>
+              <div style="color: var(--text-muted); font-size: 11px; margin-left: 22px;">
+                <i class="fa-solid fa-clock" style="font-size: 10px;"></i> ${new Date(
+                  log.timestamp,
+                ).toLocaleString()}
+              </div>
+            </div>
+          `,
+            )
+            .join("");
+        } catch (error) {
+          console.error("Failed to load recent activity:", error);
+        }
+      }
+
+      async function loadActiveUsers() {
+        try {
+          const response = await fetch("/api/online-devices");
+          const devices = await response.json();
+
+          const container = document.getElementById("activeUsersList");
+
+          if (!devices || Object.keys(devices).length === 0) {
+            container.innerHTML = `
+              <div class="empty-state">
+                <i class="fa-solid fa-user-slash"></i>
+                <p>No active users</p>
+              </div>
+            `;
+            return;
+          }
+
+          container.innerHTML = Object.entries(devices)
+            .map(
+              ([deviceId, device]) => `
+            <div class="alert-item info" style="margin-bottom: 10px; padding: 12px; border-radius: 8px; background: var(--bg-secondary); border-left: 3px solid var(--success);">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                <i class="fa-solid fa-user" style="color: var(--success); font-size: 14px;"></i>
+                <span style="color: var(--text); font-weight: 500; font-size: 13px;">${
+                  device.email || device.userEmail || "Unknown User"
+                }</span>
+              </div>
+              <div style="color: var(--text-muted); font-size: 12px; margin-left: 22px; margin-bottom: 4px;">
+                <i class="fa-solid fa-laptop" style="font-size: 11px;"></i> ${
+                  device.deviceId
+                    ? "Device ID: " + device.deviceId.substring(0, 30) + "..."
+                    : "Browser Session"
+                }
+              </div>
+              <div style="color: var(--text-muted); font-size: 11px; margin-left: 22px;">
+                <i class="fa-solid fa-clock" style="font-size: 10px;"></i> Last seen: ${new Date(
+                  device.lastSeen,
+                ).toLocaleString()}
+              </div>
+            </div>
+          `,
+            )
+            .join("");
+        } catch (error) {
+          console.error("Failed to load active users:", error);
+        }
+      }
+
+      function getActionIcon(action) {
+        const icons = {
+          visit: "fa-eye",
+          blocked: "fa-ban",
+          login: "fa-right-to-bracket",
+          logout: "fa-right-from-bracket",
+        };
+        return icons[action] || "fa-circle-info";
+      }
+
+      async function updateSystemStats() {
+        try {
+          const response = await fetch("/api/system/stats");
+          const data = await response.json();
+
+          document.getElementById("cpuVal").textContent = data.cpu + "%";
+          document.getElementById("cpuBar").style.width = data.cpu + "%";
+
+          document.getElementById("memVal").textContent = data.memory + "%";
+          document.getElementById("memBar").style.width = data.memory + "%";
+
+          document.getElementById("diskVal").textContent = data.disk + "%";
+          document.getElementById("diskBar").style.width = data.disk + "%";
+        } catch (error) {
+          console.error("Failed to update system stats:", error);
+        }
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AuthTrack - Logs & Reports</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="/static/css/style.css" />
+  </head>
+  <body>
+    <div class="app-container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="logo">
+          <i class="fa-solid fa-network-wired"></i> AuthTrack
+        </div>
+        <nav>
+          <a href="/dashboard" class="nav-item">
+            <i class="fa-solid fa-chart-line"></i> Dashboard
+          </a>
+          <a href="/traffic" class="nav-item">
+            <i class="fa-solid fa-signal"></i> Traffic Analysis
+          </a>
+          <a href="/devices" class="nav-item">
+            <i class="fa-solid fa-laptop"></i> Device Settings
+          </a>
+          <a href="/logs" class="nav-item active">
+            <i class="fa-solid fa-file-lines"></i> Logs & Reports
+          </a>
+          <a href="/messages" class="nav-item">
+            <i class="fa-solid fa-envelope"></i> User Requests
+          </a>
+          <a href="/profile" class="nav-item">
+            <i class="fa-solid fa-user"></i> Profile
+          </a>
+          <a href="/logout" class="nav-item" style="margin-top: auto">
+            <i class="fa-solid fa-right-from-bracket"></i> Logout
+          </a>
+        </nav>
+
+        <!-- System Stats moved to bottom -->
+        <div style="margin-top: auto">
+          <div class="system-stats">
+            <div class="title">
+              <i class="fa-solid fa-microchip"></i> System Status
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>CPU</span>
+                <span id="cpuVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill cpu" id="cpuBar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>Memory</span>
+                <span id="memVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill memory" id="memBar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>Disk</span>
+                <span id="diskVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill disk" id="diskBar" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <header>
+          <div class="page-title">
+            <h1>Logs & Reports</h1>
+          </div>
+          <div style="display: flex; align-items: center; gap: 15px">
+            <button class="btn btn-outline" onclick="exportLogs()">
+              <i class="fa-solid fa-download"></i> Export CSV
+            </button>
+            <span style="color: var(--text-muted); font-size: 14px"
+              >{{ user_email }}</span
+            >
+          </div>
+        </header>
+
+        <!-- Tabs -->
+        <div style="display: flex; gap: 10px; margin-bottom: 20px">
+          <button
+            class="btn btn-primary"
+            id="tabActivity"
+            onclick="switchTab('activity')"
+          >
+            <i class="fa-solid fa-globe"></i> Activity Logs
+          </button>
+          <button
+            class="btn btn-outline"
+            id="tabAlerts"
+            onclick="switchTab('alerts')"
+          >
+            <i class="fa-solid fa-bell"></i> Alerts
+          </button>
+        </div>
+
+        <!-- Filters -->
+        <div class="card" style="padding: 15px">
+          <div
+            style="
+              display: flex;
+              gap: 15px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <div class="form-group" style="margin: 0">
+              <select id="filterUser" class="form-control" style="width: 200px">
+                <option value="">All Users</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin: 0">
+              <input type="date" id="filterDate" class="form-control" />
+            </div>
+            <div class="form-group" style="margin: 0">
+              <input
+                type="text"
+                id="filterSearch"
+                class="form-control"
+                placeholder="Search..."
+                style="width: 200px"
+              />
+            </div>
+            <button class="btn btn-primary" onclick="loadCurrentTab()">
+              <i class="fa-solid fa-filter"></i> Apply
+            </button>
+          </div>
+        </div>
+
+        <!-- Activity Logs -->
+        <div class="card" id="activitySection">
+          <div class="card-title">
+            <i class="fa-solid fa-clock-rotate-left"></i> Browsing Activity
+            <span
+              id="activityCount"
+              style="
+                font-size: 12px;
+                color: var(--text-muted);
+                margin-left: 10px;
+              "
+            ></span>
+          </div>
+          <div style="overflow-x: auto">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>User</th>
+                  <th>Action</th>
+                  <th>URL</th>
+                  <th>Title</th>
+                </tr>
+              </thead>
+              <tbody id="activityTable">
+                <tr>
+                  <td
+                    colspan="5"
+                    style="text-align: center; color: var(--text-muted)"
+                  >
+                    Loading...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="margin-top: 15px; text-align: center">
+            <button
+              class="btn btn-outline"
+              id="loadMoreActivity"
+              onclick="loadMoreActivity()"
+              style="display: none"
+            >
+              Load More
+            </button>
+          </div>
+        </div>
+
+        <!-- Alerts Section -->
+        <div class="card" id="alertsSection" style="display: none">
+          <div class="card-title">
+            <i class="fa-solid fa-triangle-exclamation"></i> Security Alerts
+            <span
+              id="alertsCount"
+              style="
+                font-size: 12px;
+                color: var(--text-muted);
+                margin-left: 10px;
+              "
+            ></span>
+          </div>
+          <div id="alertsList"></div>
+        </div>
+      </main>
+    </div>
+
+    <script type="module">
+      import { auth } from "/static/js/firebase-config.js";
+      import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+      let currentTab = "activity";
+      let activityData = [];
+      let alertsData = [];
+      let loadLimit = 50;
+
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+          window.location.href = "/login";
+          return;
+        }
+
+        const sessionRes = await fetch("/api/auth/session");
+        const session = await sessionRes.json();
+
+        // Redirect non-admin users - this is an admin-only page
+        if (session.role !== "admin") {
+          window.location.href = "/dashboard";
+          return;
+        }
+
+        loadUsers();
+        loadActivity();
+      });
+
+      async function loadUsers() {
+        const res = await fetch("/api/users");
+        const users = await res.json();
+
+        const select = document.getElementById("filterUser");
+        users.forEach((user) => {
+          const option = document.createElement("option");
+          option.value = user.id;
+          option.textContent = user.email;
+          select.appendChild(option);
+        });
+      }
+
+      window.switchTab = function (tab) {
+        currentTab = tab;
+
+        document.getElementById("tabActivity").className =
+          tab === "activity" ? "btn btn-primary" : "btn btn-outline";
+        document.getElementById("tabAlerts").className =
+          tab === "alerts" ? "btn btn-primary" : "btn btn-outline";
+
+        document.getElementById("activitySection").style.display =
+          tab === "activity" ? "block" : "none";
+        document.getElementById("alertsSection").style.display =
+          tab === "alerts" ? "block" : "none";
+
+        if (tab === "activity") {
+          loadActivity();
+        } else {
+          loadAlerts();
+        }
+      };
+
+      window.loadCurrentTab = function () {
+        if (currentTab === "activity") {
+          loadActivity();
+        } else {
+          loadAlerts();
+        }
+      };
+
+      async function loadActivity() {
+        const userId = document.getElementById("filterUser").value;
+        let url = `/api/activity?limit=${loadLimit}`;
+        if (userId) url += `&userId=${userId}`;
+
+        const res = await fetch(url);
+        activityData = await res.json();
+
+        // Apply local filters
+        const search = document
+          .getElementById("filterSearch")
+          .value.toLowerCase();
+        const dateFilter = document.getElementById("filterDate").value;
+
+        let filtered = activityData;
+
+        if (search) {
+          filtered = filtered.filter(
+            (a) =>
+              (a.url && a.url.toLowerCase().includes(search)) ||
+              (a.title && a.title.toLowerCase().includes(search)) ||
+              (a.userEmail && a.userEmail.toLowerCase().includes(search))
+          );
+        }
+
+        if (dateFilter) {
+          filtered = filtered.filter(
+            (a) => a.timestamp && a.timestamp.startsWith(dateFilter)
+          );
+        }
+
+        renderActivity(filtered);
+      }
+
+      function renderActivity(data) {
+        document.getElementById(
+          "activityCount"
+        ).textContent = `(${data.length} records)`;
+
+        const tbody = document.getElementById("activityTable");
+
+        if (data.length === 0) {
+          tbody.innerHTML = `
+          <tr>
+            <td colspan="5" style="text-align: center; color: var(--text-muted);">No activity found</td>
+          </tr>
+        `;
+          return;
+        }
+
+        tbody.innerHTML = data
+          .map(
+            (a) => `
+        <tr>
+          <td style="white-space: nowrap;">${formatTime(a.timestamp)}</td>
+          <td>${a.userEmail || "Unknown"}</td>
+          <td><span class="status status-${
+            a.action === "blocked" ? "blocked" : "active"
+          }">${a.action}</span></td>
+          <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${
+            a.url
+          }">${a.url || "-"}</td>
+          <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${
+            a.title
+          }">${a.title || "-"}</td>
+        </tr>
+      `
+          )
+          .join("");
+
+        document.getElementById("loadMoreActivity").style.display =
+          data.length >= loadLimit ? "inline-block" : "none";
+      }
+
+      window.loadMoreActivity = function () {
+        loadLimit += 50;
+        loadActivity();
+      };
+
+      async function loadAlerts() {
+        const res = await fetch("/api/alerts");
+        alertsData = await res.json();
+
+        const search = document
+          .getElementById("filterSearch")
+          .value.toLowerCase();
+        let filtered = alertsData;
+
+        if (search) {
+          filtered = filtered.filter(
+            (a) => a.message && a.message.toLowerCase().includes(search)
+          );
+        }
+
+        renderAlerts(filtered);
+      }
+
+      function renderAlerts(data) {
+        document.getElementById(
+          "alertsCount"
+        ).textContent = `(${data.length} alerts)`;
+
+        const container = document.getElementById("alertsList");
+
+        if (data.length === 0) {
+          container.innerHTML = `
+          <div class="empty-state">
+            <i class="fa-solid fa-check-circle" style="color: var(--success);"></i>
+            <p>No alerts found</p>
+          </div>
+        `;
+          return;
+        }
+
+        container.innerHTML = data
+          .map(
+            (a) => `
+        <div class="alert alert-${
+          a.severity || "warning"
+        }" style="margin-bottom: 10px;">
+          <i class="fa-solid ${getAlertIcon(a.type)}"></i>
+          <div style="flex: 1;">
+            <div style="font-size: 13px;">${a.message}</div>
+            <div style="font-size: 11px; opacity: 0.7;">${formatTime(
+              a.timestamp
+            )}</div>
+          </div>
+        </div>
+      `
+          )
+          .join("");
+      }
+
+      function getAlertIcon(type) {
+        const icons = {
+          blocked_access: "fa-ban",
+          device_blocked: "fa-server",
+          high_bandwidth: "fa-gauge-high",
+          suspicious: "fa-user-secret",
+          login_failed: "fa-key",
+        };
+        return icons[type] || "fa-bell";
+      }
+
+      function formatTime(timestamp) {
+        if (!timestamp) return "-";
+        const date = new Date(timestamp);
+        return date.toLocaleString();
+      }
+
+      // Export logs
+      window.exportLogs = function () {
+        const data = currentTab === "activity" ? activityData : alertsData;
+
+        if (data.length === 0) {
+          alert("No data to export");
+          return;
+        }
+
+        let csv = "";
+
+        if (currentTab === "activity") {
+          csv = "Timestamp,User,Action,URL,Title\n";
+          data.forEach((a) => {
+            csv += `"${a.timestamp}","${a.userEmail || ""}","${a.action}","${
+              a.url || ""
+            }","${(a.title || "").replace(/"/g, '""')}"\n`;
+          });
+        } else {
+          csv = "Timestamp,Type,Severity,Message\n";
+          data.forEach((a) => {
+            csv += `"${a.timestamp}","${a.type}","${a.severity}","${(
+              a.message || ""
+            ).replace(/"/g, '""')}"\n`;
+          });
+        }
+
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `netmonitoring_${currentTab}_${
+          new Date().toISOString().split("T")[0]
+        }.csv`;
+        a.click();
+      };
+
+      // System stats update
+      async function updateSystemStats() {
+        try {
+          const response = await fetch("/api/system/stats");
+          const data = await response.json();
+
+          document.getElementById("cpuVal").textContent = data.cpu + "%";
+          document.getElementById("cpuBar").style.width = data.cpu + "%";
+
+          document.getElementById("memVal").textContent = data.memory + "%";
+          document.getElementById("memBar").style.width = data.memory + "%";
+
+          document.getElementById("diskVal").textContent = data.disk + "%";
+          document.getElementById("diskBar").style.width = data.disk + "%";
+        } catch (error) {
+          console.error("Failed to update system stats:", error);
+        }
+      }
+
+      // Update system stats every 2 seconds
+      setInterval(updateSystemStats, 2000);
+      updateSystemStats();
+    </script>
+  </body>
+</html>

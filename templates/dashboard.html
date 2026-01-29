@@ -1,0 +1,2643 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AuthTrack - Dashboard</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="/static/css/style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      /* Admin Dashboard Specific Styles */
+      .dashboard-tabs {
+        display: flex;
+        gap: 5px;
+        margin-bottom: 20px;
+        background: var(--bg-card);
+        padding: 5px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+      }
+      .dashboard-tab {
+        padding: 10px 20px;
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        border-radius: 8px;
+        font-size: 13px;
+        transition: all 0.2s;
+      }
+      .dashboard-tab:hover {
+        background: var(--bg-dark);
+        color: var(--text);
+      }
+      .dashboard-tab.active {
+        background: var(--primary);
+        color: white;
+      }
+      .tab-content {
+        display: none;
+      }
+      .tab-content.active {
+        display: block;
+      }
+
+      /* Console Window */
+      .console-window {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        font-family: "Consolas", "Monaco", monospace;
+        font-size: 12px;
+        padding: 15px;
+        color: #58a6ff;
+        overflow-y: auto;
+        max-height: 350px;
+      }
+      .console-line {
+        margin: 3px 0;
+        opacity: 0.9;
+      }
+      .console-line:hover {
+        opacity: 1;
+        background: rgba(88, 166, 255, 0.1);
+      }
+      .console-line.error {
+        color: #f85149;
+      }
+      .console-line.success {
+        color: #3fb950;
+      }
+      .console-line.warning {
+        color: #d29922;
+      }
+
+      /* Sniffer Stats */
+      .sniffer-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px;
+        margin-top: 15px;
+      }
+      .stat-box {
+        background: var(--bg-dark);
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+      }
+      .stat-box .value {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--primary);
+      }
+      .stat-box .label {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 5px;
+      }
+
+      /* Topology Visualization */
+      .topology-container {
+        background: var(--bg-dark);
+        border-radius: 8px;
+        padding: 0;
+        min-height: 400px;
+        height: 400px;
+        position: relative;
+        overflow: hidden;
+        cursor: grab;
+        user-select: none;
+      }
+      .topology-container:active {
+        cursor: grabbing;
+      }
+      #topologyContent {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        transform-origin: 0 0;
+        transition: none;
+      }
+      .topology-controls {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        z-index: 10;
+      }
+      .topology-controls button {
+        width: 35px;
+        height: 35px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--bg-card);
+        color: var(--text);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        transition: 0.2s;
+      }
+      .topology-controls button:hover {
+        background: var(--bg-dark);
+        border-color: var(--primary);
+        color: var(--primary);
+      }
+      .topology-zoom-level {
+        font-size: 10px;
+        color: var(--text-muted);
+        text-align: center;
+        background: var(--bg-card);
+        padding: 3px 6px;
+        border-radius: 4px;
+        border: 1px solid var(--border);
+      }
+      .topology-node {
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+        cursor: move;
+        transition: transform 0.1s;
+      }
+      .topology-node:hover {
+        transform: scale(1.1);
+      }
+      .topology-node.dragging {
+        opacity: 0.7;
+        z-index: 1000;
+      }
+      .topology-node .icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        border: 2px solid;
+      }
+      .topology-node .icon.internet {
+        background: rgba(59, 130, 246, 0.2);
+        border-color: var(--primary);
+        color: var(--primary);
+      }
+      .topology-node .icon.router {
+        background: rgba(168, 85, 247, 0.2);
+        border-color: #a855f7;
+        color: #a855f7;
+      }
+      .topology-node .icon.device {
+        background: rgba(16, 185, 129, 0.2);
+        border-color: var(--success);
+        color: var(--success);
+      }
+      .topology-node .label {
+        font-size: 11px;
+        color: var(--text-muted);
+        max-width: 80px;
+        text-align: center;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .topology-line {
+        position: absolute;
+        background: #475569;
+        transform-origin: left center;
+      }
+
+      /* Device Table */
+      .device-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .device-table th {
+        text-align: left;
+        padding: 12px;
+        font-size: 11px;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--border);
+      }
+      .device-table td {
+        padding: 12px;
+        border-bottom: 1px solid var(--border);
+        font-size: 13px;
+      }
+      .device-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 500;
+      }
+      .device-status.online {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success);
+      }
+      .device-status.offline {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--danger);
+      }
+
+      /* System Stats Sidebar */
+      .system-stats {
+        padding: 15px;
+        background: var(--bg-card);
+        border-radius: 10px;
+        border: 1px solid var(--border);
+      }
+      .system-stats .title {
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 15px;
+        color: var(--text-muted);
+      }
+      .sys-stat {
+        margin-bottom: 15px;
+      }
+      .sys-stat .header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        margin-bottom: 5px;
+      }
+      .sys-stat .bar {
+        height: 6px;
+        background: var(--bg-dark);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .sys-stat .fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.3s;
+      }
+      .sys-stat .fill.cpu {
+        background: var(--success);
+      }
+      .sys-stat .fill.memory {
+        background: var(--warning);
+      }
+      .sys-stat .fill.disk {
+        background: var(--primary);
+      }
+
+      /* Alert Items */
+      .alert-item {
+        padding: 12px;
+        background: var(--bg-dark);
+        border-radius: 8px;
+        margin-bottom: 10px;
+        border-left: 3px solid var(--warning);
+      }
+      .alert-item.danger {
+        border-color: var(--danger);
+      }
+      .alert-item.info {
+        border-color: var(--primary);
+      }
+      .alert-item .title {
+        font-size: 13px;
+        font-weight: 500;
+        margin-bottom: 5px;
+      }
+      .alert-item .desc {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+      .alert-item .time {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 5px;
+      }
+
+      /* ML Badge */
+      .ml-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        background: rgba(168, 85, 247, 0.1);
+        color: #a855f7;
+      }
+
+      /* Control Buttons */
+      .btn-green {
+        background: var(--success);
+        color: white;
+      }
+      .btn-red {
+        background: var(--danger);
+        color: white;
+      }
+      .btn-blue {
+        background: var(--primary);
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="logo">
+          <i class="fa-solid fa-network-wired"></i> AuthTrack
+        </div>
+        <nav>
+          <a href="/dashboard" class="nav-item active">
+            <i class="fa-solid fa-chart-line"></i> Dashboard
+          </a>
+          <a href="/traffic" class="nav-item">
+            <i class="fa-solid fa-signal"></i> Traffic Analysis
+          </a>
+          {% if user_role == 'admin' %}
+          <a href="/devices" class="nav-item">
+            <i class="fa-solid fa-laptop"></i> Device Settings
+          </a>
+          <a
+            href="#"
+            class="nav-item"
+            onclick="
+              showSecurityTab();
+              return false;
+            "
+          >
+            <i class="fa-solid fa-shield-halved"></i> Security Scanner
+          </a>
+          <a href="/logs" class="nav-item">
+            <i class="fa-solid fa-file-lines"></i> Logs & Reports
+          </a>
+          <a href="/messages" class="nav-item">
+            <i class="fa-solid fa-envelope"></i> User Requests
+          </a>
+          {% else %}
+          <a
+            href="/dashboard?openMessages=true"
+            class="nav-item"
+            id="messagesNav"
+          >
+            <i class="fa-solid fa-envelope"></i> Messages
+            <span class="nav-badge" id="msgBadge" style="display: none">0</span>
+          </a>
+          {% endif %}
+          <a href="/profile" class="nav-item">
+            <i class="fa-solid fa-user"></i> Profile
+          </a>
+          <a href="/logout" class="nav-item" style="margin-top: auto">
+            <i class="fa-solid fa-right-from-bracket"></i> Logout
+          </a>
+        </nav>
+
+        <!-- System Stats moved to bottom -->
+        <div style="margin-top: auto">
+          <!-- System Stats (Admin Only) -->
+          <div
+            class="system-stats admin-only"
+            {%
+            if
+            user_role
+            !="admin"
+            %}style="display: none"
+            {%
+            endif
+            %}
+          >
+            <div class="title">
+              <i class="fa-solid fa-microchip"></i> System Status
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>CPU</span>
+                <span id="cpuVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill cpu" id="cpuBar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>Memory</span>
+                <span id="memVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill memory" id="memBar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="sys-stat">
+              <div class="header">
+                <span>Disk</span>
+                <span id="diskVal">0%</span>
+              </div>
+              <div class="bar">
+                <div class="fill disk" id="diskBar" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <header>
+          <div class="page-title">
+            <h1>
+              {% if user_role == 'admin' %}Network Dashboard{% else
+              %}Dashboard{% endif %}
+            </h1>
+          </div>
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 15px;
+              margin-left: auto;
+            "
+          >
+            <span style="color: var(--text-muted); font-size: 14px"
+              >{{ user_email }}</span
+            >
+          </div>
+        </header>
+
+        <!-- ========== ADMIN DASHBOARD ========== -->
+        <div
+          class="admin-only"
+          id="adminDashboard"
+          {%
+          if
+          user_role
+          !="admin"
+          %}style="display: none"
+          {%
+          endif
+          %}
+        >
+          <!-- Tabs -->
+          <div class="dashboard-tabs">
+            <button
+              class="dashboard-tab active"
+              onclick="switchTab('overview')"
+            >
+              <i class="fa-solid fa-chart-pie"></i> Overview
+            </button>
+            <button class="dashboard-tab" onclick="switchTab('sniffer')">
+              <i class="fa-solid fa-network-wired"></i> Packet Sniffer
+            </button>
+            <button class="dashboard-tab" onclick="switchTab('devices')">
+              <i class="fa-solid fa-laptop"></i> Devices
+            </button>
+            <button class="dashboard-tab" onclick="switchTab('alerts')">
+              <i class="fa-solid fa-bell"></i> Alerts
+            </button>
+          </div>
+
+          <!-- Overview Tab -->
+          <div class="tab-content active" id="tab-overview">
+            <div class="grid-4" style="margin-bottom: 20px">
+              <div class="stat-card">
+                <div class="icon blue"><i class="fa-solid fa-users"></i></div>
+                <h3 id="statOnlineUsers">0</h3>
+                <p>Online Users</p>
+              </div>
+              <div class="stat-card">
+                <div class="icon green"><i class="fa-solid fa-server"></i></div>
+                <h3 id="statDevices">0</h3>
+                <p>Network Devices</p>
+              </div>
+              <div class="stat-card">
+                <div class="icon orange"><i class="fa-solid fa-globe"></i></div>
+                <h3 id="statActivity">0</h3>
+                <p>Recent Activity (24h)</p>
+              </div>
+              <div class="stat-card">
+                <div class="icon red"><i class="fa-solid fa-bell"></i></div>
+                <h3 id="statAlerts">0</h3>
+                <p>New Alerts</p>
+              </div>
+            </div>
+
+            <div class="grid-2" style="margin-bottom: 20px">
+              <!-- Traffic Chart -->
+              <div class="card">
+                <div
+                  class="card-title"
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                  "
+                >
+                  <span
+                    ><i class="fa-solid fa-chart-line"></i> Network
+                    Traffic</span
+                  >
+                  <span class="ml-badge"
+                    ><i class="fa-solid fa-brain"></i> ML Active</span
+                  >
+                </div>
+                <div style="height: 250px; position: relative">
+                  <canvas id="trafficChart"></canvas>
+                </div>
+              </div>
+
+              <!-- Network Topology -->
+              <div class="card">
+                <div class="card-title">
+                  <i class="fa-solid fa-diagram-project"></i> Network Topology
+                  <span
+                    style="
+                      font-size: 11px;
+                      color: var(--text-muted);
+                      margin-left: 10px;
+                    "
+                    >Drag to pan • Scroll to zoom • Click nodes to drag</span
+                  >
+                </div>
+                <div class="topology-container" id="topologyContainer">
+                  <div class="topology-controls">
+                    <button onclick="zoomTopology(0.1)" title="Zoom In">
+                      <i class="fa-solid fa-plus"></i>
+                    </button>
+                    <button onclick="zoomTopology(-0.1)" title="Zoom Out">
+                      <i class="fa-solid fa-minus"></i>
+                    </button>
+                    <button onclick="resetTopologyView()" title="Reset View">
+                      <i class="fa-solid fa-maximize"></i>
+                    </button>
+                    <button
+                      onclick="clearNetworkDevices()"
+                      title="Clear All Devices"
+                      style="background: var(--danger)"
+                    >
+                      <i class="fa-solid fa-trash"></i>
+                    </button>
+                    <div class="topology-zoom-level" id="topologyZoomLevel">
+                      100%
+                    </div>
+                  </div>
+                  <div id="topologyContent"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <!-- Recent Alerts -->
+              <div class="card">
+                <div class="card-title">
+                  <i class="fa-solid fa-triangle-exclamation"></i> Recent Alerts
+                </div>
+                <div
+                  id="alertsList"
+                  style="max-height: 300px; overflow-y: auto"
+                >
+                  <div class="empty-state">
+                    <i
+                      class="fa-solid fa-check-circle"
+                      style="color: var(--success)"
+                    ></i>
+                    <p>No alerts</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Active Users -->
+              <div class="card">
+                <div class="card-title">
+                  <i
+                    class="fa-solid fa-circle"
+                    style="color: var(--success); font-size: 10px"
+                  ></i>
+                  Active Users
+                </div>
+                <div
+                  id="activeUsersList"
+                  style="max-height: 300px; overflow-y: auto"
+                >
+                  <div class="empty-state">
+                    <i class="fa-solid fa-user-slash"></i>
+                    <p>No active users</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Packet Sniffer Tab -->
+          <div class="tab-content" id="tab-sniffer">
+            <div class="card">
+              <div
+                class="card-title"
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                "
+              >
+                <span
+                  ><i class="fa-solid fa-network-wired"></i> Live Packet
+                  Sniffer</span
+                >
+                <div style="display: flex; gap: 10px">
+                  <button
+                    class="btn btn-green"
+                    id="startSnifferBtn"
+                    onclick="startSniffer()"
+                  >
+                    <i class="fa-solid fa-play"></i> Start
+                  </button>
+                  <button
+                    class="btn btn-red"
+                    id="stopSnifferBtn"
+                    onclick="stopSniffer()"
+                    disabled
+                  >
+                    <i class="fa-solid fa-stop"></i> Stop
+                  </button>
+                  <button class="btn" onclick="clearConsole()">
+                    <i class="fa-solid fa-eraser"></i> Clear
+                  </button>
+                </div>
+              </div>
+
+              <div class="console-window" id="snifferConsole">
+                <div class="console-line">
+                  > Packet sniffer ready. Click "Start" to begin capturing
+                  packets.
+                </div>
+                <div class="console-line">
+                  > Mode: <span id="snifferMode">Checking...</span>
+                </div>
+              </div>
+
+              <div class="sniffer-stats">
+                <div class="stat-box">
+                  <div class="value" id="packetCount">0</div>
+                  <div class="label">Packets Captured</div>
+                </div>
+                <div class="stat-box">
+                  <div class="value" id="topProtocol">-</div>
+                  <div class="label">Top Protocol</div>
+                </div>
+                <div class="stat-box">
+                  <div class="value" id="captureTime">00:00</div>
+                  <div class="label">Capture Time</div>
+                </div>
+                <div class="stat-box">
+                  <div class="value" id="snifferStatus">Stopped</div>
+                  <div class="label">Status</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Protocol Distribution -->
+            <div class="grid-2" style="margin-top: 20px">
+              <div class="card">
+                <div class="card-title">
+                  <i class="fa-solid fa-pie-chart"></i> Protocol Distribution
+                </div>
+                <div style="height: 250px; position: relative">
+                  <canvas id="protocolChart"></canvas>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-title">
+                  <i class="fa-solid fa-brain"></i> ML Anomaly Detection
+                </div>
+                <div
+                  id="mlAnomalies"
+                  style="max-height: 250px; overflow-y: auto"
+                >
+                  <div class="empty-state">
+                    <i
+                      class="fa-solid fa-shield-check"
+                      style="color: var(--success)"
+                    ></i>
+                    <p>No anomalies detected</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Devices Tab -->
+          <div class="tab-content" id="tab-devices">
+            <div class="card">
+              <div
+                class="card-title"
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                "
+              >
+                <span
+                  ><i class="fa-solid fa-laptop"></i> Connected Devices</span
+                >
+                <div>
+                  <button class="btn btn-blue" onclick="refreshDevices()">
+                    <i class="fa-solid fa-sync"></i> Refresh
+                  </button>
+                  <button class="btn btn-red" onclick="resetNetworkData()">
+                    <i class="fa-solid fa-trash"></i> Reset Data
+                  </button>
+                </div>
+              </div>
+              <div style="overflow-x: auto">
+                <table class="device-table">
+                  <thead>
+                    <tr>
+                      <th>Device</th>
+                      <th>IP Address</th>
+                      <th>Status</th>
+                      <th>Traffic</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="deviceTableBody">
+                    <tr>
+                      <td
+                        colspan="5"
+                        style="text-align: center; color: var(--text-muted)"
+                      >
+                        Start the sniffer to discover devices
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alerts Tab -->
+          <div class="tab-content" id="tab-alerts">
+            <!-- Security Scanning Section -->
+            <div class="grid-3" style="margin-bottom: 20px">
+              <div class="card">
+                <div class="card-title" style="font-size: 13px">
+                  <i class="fa-solid fa-shield-halved"></i> Port Scan
+                </div>
+                <button
+                  onclick="runSecurityScan('port_scan')"
+                  class="btn btn-outline"
+                  style="width: 100%; margin-bottom: 10px"
+                >
+                  <i class="fa-solid fa-play"></i> Scan Network Ports
+                </button>
+                <div
+                  id="portScanStatus"
+                  style="font-size: 11px; color: var(--text-muted)"
+                >
+                  Status: Idle
+                </div>
+                <div
+                  id="portScanResults"
+                  style="margin-top: 10px; max-height: 200px; overflow-y: auto"
+                ></div>
+              </div>
+
+              <div class="card">
+                <div class="card-title" style="font-size: 13px">
+                  <i class="fa-solid fa-globe"></i> DNS Check
+                </div>
+                <button
+                  onclick="runSecurityScan('dns_check')"
+                  class="btn btn-outline"
+                  style="width: 100%; margin-bottom: 10px"
+                >
+                  <i class="fa-solid fa-play"></i> Check DNS Hijacking
+                </button>
+                <div
+                  id="dnsCheckStatus"
+                  style="font-size: 11px; color: var(--text-muted)"
+                >
+                  Status: Idle
+                </div>
+                <div
+                  id="dnsCheckResults"
+                  style="margin-top: 10px; max-height: 200px; overflow-y: auto"
+                ></div>
+              </div>
+
+              <div class="card">
+                <div class="card-title" style="font-size: 13px">
+                  <i class="fa-solid fa-door-open"></i> Open Ports
+                </div>
+                <button
+                  onclick="runSecurityScan('open_ports')"
+                  class="btn btn-outline"
+                  style="width: 100%; margin-bottom: 10px"
+                >
+                  <i class="fa-solid fa-play"></i> Scan Local Ports
+                </button>
+                <div
+                  id="openPortsStatus"
+                  style="font-size: 11px; color: var(--text-muted)"
+                >
+                  Status: Idle
+                </div>
+                <div
+                  id="openPortsResults"
+                  style="margin-top: 10px; max-height: 200px; overflow-y: auto"
+                ></div>
+              </div>
+            </div>
+
+            <!-- All Alerts -->
+            <div class="card">
+              <div class="card-title">
+                <i class="fa-solid fa-bell"></i> All Alerts
+              </div>
+              <div id="allAlertsList">
+                <div class="empty-state">
+                  <i
+                    class="fa-solid fa-check-circle"
+                    style="color: var(--success)"
+                  ></i>
+                  <p>No alerts</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Security Scanner Tab -->
+          <div class="tab-content" id="tab-security" style="display: none">
+            <div class="card" style="margin-bottom: 20px">
+              <div class="card-title">
+                <i class="fa-solid fa-shield-halved"></i> Security Scanner
+              </div>
+              <p
+                style="
+                  font-size: 12px;
+                  color: var(--text-muted);
+                  margin-bottom: 20px;
+                "
+              >
+                Run security scans to detect vulnerabilities and potential
+                threats on your network.
+              </p>
+
+              <!-- Scan Controls -->
+              <div class="grid-3" style="margin-bottom: 30px">
+                <div
+                  class="card"
+                  style="
+                    background: var(--bg-secondary);
+                    border: 1px solid var(--border);
+                  "
+                >
+                  <div style="text-align: center">
+                    <i
+                      class="fa-solid fa-network-wired"
+                      style="
+                        font-size: 32px;
+                        color: var(--primary);
+                        margin-bottom: 10px;
+                      "
+                    ></i>
+                    <h4 style="font-size: 14px; margin-bottom: 10px">
+                      Port Scan
+                    </h4>
+                    <p
+                      style="
+                        font-size: 11px;
+                        color: var(--text-muted);
+                        margin-bottom: 15px;
+                      "
+                    >
+                      Scan network devices for open ports and services
+                    </p>
+                    <button
+                      onclick="startSecurityScan('port_scan')"
+                      class="btn btn-primary"
+                      style="width: 100%"
+                      id="btnPortScan"
+                    >
+                      <i class="fa-solid fa-play"></i> Start Scan
+                    </button>
+                    <div
+                      id="statusPortScan"
+                      style="
+                        margin-top: 10px;
+                        font-size: 11px;
+                        color: var(--text-muted);
+                      "
+                    >
+                      Status: Ready
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  class="card"
+                  style="
+                    background: var(--bg-secondary);
+                    border: 1px solid var(--border);
+                  "
+                >
+                  <div style="text-align: center">
+                    <i
+                      class="fa-solid fa-globe"
+                      style="
+                        font-size: 32px;
+                        color: var(--success);
+                        margin-bottom: 10px;
+                      "
+                    ></i>
+                    <h4 style="font-size: 14px; margin-bottom: 10px">
+                      DNS Hijacking Check
+                    </h4>
+                    <p
+                      style="
+                        font-size: 11px;
+                        color: var(--text-muted);
+                        margin-bottom: 15px;
+                      "
+                    >
+                      Verify DNS servers and detect DNS hijacking
+                    </p>
+                    <button
+                      onclick="startSecurityScan('dns_check')"
+                      class="btn btn-primary"
+                      style="width: 100%"
+                      id="btnDnsCheck"
+                    >
+                      <i class="fa-solid fa-play"></i> Start Scan
+                    </button>
+                    <div
+                      id="statusDnsCheck"
+                      style="
+                        margin-top: 10px;
+                        font-size: 11px;
+                        color: var(--text-muted);
+                      "
+                    >
+                      Status: Ready
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  class="card"
+                  style="
+                    background: var(--bg-secondary);
+                    border: 1px solid var(--border);
+                  "
+                >
+                  <div style="text-align: center">
+                    <i
+                      class="fa-solid fa-door-open"
+                      style="
+                        font-size: 32px;
+                        color: var(--warning);
+                        margin-bottom: 10px;
+                      "
+                    ></i>
+                    <h4 style="font-size: 14px; margin-bottom: 10px">
+                      Local Open Ports
+                    </h4>
+                    <p
+                      style="
+                        font-size: 11px;
+                        color: var(--text-muted);
+                        margin-bottom: 15px;
+                      "
+                    >
+                      Check open ports on this machine
+                    </p>
+                    <button
+                      onclick="startSecurityScan('open_ports')"
+                      class="btn btn-primary"
+                      style="width: 100%"
+                      id="btnOpenPorts"
+                    >
+                      <i class="fa-solid fa-play"></i> Start Scan
+                    </button>
+                    <div
+                      id="statusOpenPorts"
+                      style="
+                        margin-top: 10px;
+                        font-size: 11px;
+                        color: var(--text-muted);
+                      "
+                    >
+                      Status: Ready
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Port Scan Results -->
+              <div
+                class="card"
+                id="portScanCard"
+                style="display: none; margin-bottom: 20px"
+              >
+                <div class="card-title">
+                  <i class="fa-solid fa-network-wired"></i> Port Scan Results
+                </div>
+                <div id="portScanResults"></div>
+              </div>
+
+              <!-- DNS Check Results -->
+              <div
+                class="card"
+                id="dnsCheckCard"
+                style="display: none; margin-bottom: 20px"
+              >
+                <div class="card-title">
+                  <i class="fa-solid fa-globe"></i> DNS Hijacking Check Results
+                </div>
+                <div id="dnsCheckResults"></div>
+              </div>
+
+              <!-- Open Ports Results -->
+              <div class="card" id="openPortsCard" style="display: none">
+                <div class="card-title">
+                  <i class="fa-solid fa-door-open"></i> Local Open Ports
+                </div>
+                <div id="openPortsResults"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========== USER DASHBOARD ========== -->
+        {% if user_role != "admin" %}
+        <div class="user-only" id="userDashboard">
+          <!-- User Stats -->
+          <div class="grid-1" style="margin-bottom: 20px">
+            <div class="stat-card">
+              <div class="icon orange"><i class="fa-solid fa-globe"></i></div>
+              <h3 id="userStatActivity">0</h3>
+              <p>My Activity (24h)</p>
+            </div>
+          </div>
+
+          <!-- My Restrictions -->
+          <div class="card" style="margin-bottom: 20px">
+            <div class="card-title">
+              <i class="fa-solid fa-clock"></i> My Access Restrictions
+            </div>
+            <p
+              style="
+                font-size: 12px;
+                color: var(--text-muted);
+                margin-bottom: 15px;
+              "
+            >
+              These restrictions are set by your administrator.
+            </p>
+            <div id="myRestrictions">
+              <div class="empty-state">
+                <i
+                  class="fa-solid fa-check-circle"
+                  style="color: var(--success)"
+                ></i>
+                <p>No restrictions applied</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- My Activity -->
+          <div class="card">
+            <div class="card-title">
+              <i class="fa-solid fa-clock-rotate-left"></i> My Recent Activity
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>URL</th>
+                  <th>Time</th>
+                </tr>
+              </thead>
+              <tbody id="userActivityTable">
+                <tr>
+                  <td
+                    colspan="3"
+                    style="text-align: center; color: var(--text-muted)"
+                  >
+                    Loading...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+      </main>
+    </div>
+
+    <!-- Message Modal (Users Only) -->
+    {% if user_role != 'admin' %}
+    <div class="modal-overlay" id="messageModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h3><i class="fa-solid fa-envelope"></i> My Messages</h3>
+          <button class="modal-close" onclick="closeMessageModal()">
+            &times;
+          </button>
+        </div>
+        <div
+          id="messagesList"
+          style="max-height: 400px; overflow-y: auto"
+        ></div>
+        <hr style="border-color: var(--border); margin: 15px 0" />
+        <form id="sendMessageForm">
+          <div class="form-group">
+            <label>New Request to Admin</label>
+            <input
+              type="text"
+              id="msgSubject"
+              class="form-control"
+              placeholder="Subject"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <textarea
+              id="msgContent"
+              class="form-control"
+              rows="3"
+              placeholder="Your message..."
+              required
+            ></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">
+            <i class="fa-solid fa-paper-plane"></i> Send
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <script>
+      // Global State
+      let userRole = "{{ user_role }}";
+      let snifferInterval = null;
+      let captureStartTime = null;
+      let trafficChart = null;
+      let protocolChart = null;
+
+      // Tab Switching
+      function switchTab(tabName) {
+        document
+          .querySelectorAll(".dashboard-tab")
+          .forEach((t) => t.classList.remove("active"));
+        document
+          .querySelectorAll(".tab-content")
+          .forEach((t) => t.classList.remove("active"));
+
+        document
+          .querySelector(`[onclick="switchTab('${tabName}')"]`)
+          .classList.add("active");
+        document.getElementById("tab-" + tabName).classList.add("active");
+
+        // Load data when switching to specific tabs
+        if (tabName === "devices") {
+          refreshDevices();
+        } else if (tabName === "alerts") {
+          loadAlerts();
+        } else if (tabName === "security") {
+          loadSecurityResults();
+        }
+      }
+
+      // Show Security Tab
+      function showSecurityTab() {
+        document
+          .querySelectorAll(".nav-item")
+          .forEach((item) => item.classList.remove("active"));
+        event.target.closest(".nav-item").classList.add("active");
+
+        document
+          .querySelectorAll(".tab-content")
+          .forEach((t) => (t.style.display = "none"));
+        document.getElementById("tab-security").style.display = "block";
+
+        loadSecurityResults();
+      }
+
+      // Initialize Charts
+      function initCharts() {
+        // Traffic Chart
+        const trafficCtx = document
+          .getElementById("trafficChart")
+          ?.getContext("2d");
+        if (trafficCtx) {
+          trafficChart = new Chart(trafficCtx, {
+            type: "line",
+            data: {
+              labels: [],
+              datasets: [
+                {
+                  label: "Inbound (KB)",
+                  data: [],
+                  borderColor: "#3b82f6",
+                  backgroundColor: "rgba(59, 130, 246, 0.1)",
+                  fill: true,
+                  tension: 0.4,
+                },
+                {
+                  label: "Outbound (KB)",
+                  data: [],
+                  borderColor: "#10b981",
+                  backgroundColor: "rgba(16, 185, 129, 0.1)",
+                  fill: true,
+                  tension: 0.4,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { labels: { color: "#94a3b8" } } },
+              scales: {
+                y: {
+                  grid: { color: "#2d3748" },
+                  ticks: { color: "#94a3b8" },
+                  beginAtZero: true,
+                },
+                x: {
+                  grid: { display: false },
+                  ticks: { color: "#94a3b8", maxTicksLimit: 6 },
+                },
+              },
+            },
+          });
+        }
+
+        // Protocol Chart
+        const protoCtx = document
+          .getElementById("protocolChart")
+          ?.getContext("2d");
+        if (protoCtx) {
+          protocolChart = new Chart(protoCtx, {
+            type: "doughnut",
+            data: {
+              labels: ["TCP", "UDP", "ICMP", "Other"],
+              datasets: [
+                {
+                  data: [0, 0, 0, 0],
+                  backgroundColor: ["#3b82f6", "#10b981", "#f59e0b", "#6366f1"],
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { position: "bottom", labels: { color: "#94a3b8" } },
+              },
+            },
+          });
+        }
+      }
+
+      // Sniffer Controls
+      async function startSniffer() {
+        try {
+          const res = await fetch("/api/sniffer/start", { method: "POST" });
+          const data = await res.json();
+
+          addConsoleLine("> " + data.message, "success");
+          document.getElementById("startSnifferBtn").disabled = true;
+          document.getElementById("stopSnifferBtn").disabled = false;
+          document.getElementById("snifferStatus").textContent = "Running";
+
+          captureStartTime = new Date();
+          snifferInterval = setInterval(pollSnifferData, 1000);
+        } catch (err) {
+          addConsoleLine("> Error starting sniffer: " + err, "error");
+        }
+      }
+
+      async function stopSniffer() {
+        try {
+          const res = await fetch("/api/sniffer/stop", { method: "POST" });
+          const data = await res.json();
+
+          addConsoleLine("> " + data.message, "warning");
+          document.getElementById("startSnifferBtn").disabled = false;
+          document.getElementById("stopSnifferBtn").disabled = true;
+          document.getElementById("snifferStatus").textContent = "Stopped";
+
+          if (snifferInterval) clearInterval(snifferInterval);
+        } catch (err) {
+          addConsoleLine("> Error stopping sniffer: " + err, "error");
+        }
+      }
+
+      function addConsoleLine(text, type = "") {
+        const console = document.getElementById("snifferConsole");
+        const line = document.createElement("div");
+        line.className = "console-line" + (type ? " " + type : "");
+        line.textContent = text;
+        console.appendChild(line);
+        console.scrollTop = console.scrollHeight;
+      }
+
+      function clearConsole() {
+        document.getElementById("snifferConsole").innerHTML =
+          '<div class="console-line">> Console cleared.</div>';
+      }
+
+      async function pollSnifferData() {
+        try {
+          const res = await fetch("/api/sniffer/logs");
+          const data = await res.json();
+
+          // Update packet count
+          document.getElementById("packetCount").textContent =
+            data.total_captured || 0;
+          document.getElementById("topProtocol").textContent =
+            data.top_protocol || "-";
+
+          // Update capture time
+          if (captureStartTime) {
+            const elapsed = Math.floor((new Date() - captureStartTime) / 1000);
+            const mins = Math.floor(elapsed / 60)
+              .toString()
+              .padStart(2, "0");
+            const secs = (elapsed % 60).toString().padStart(2, "0");
+            document.getElementById("captureTime").textContent =
+              `${mins}:${secs}`;
+          }
+
+          // Add new packets to console
+          if (data.packets && data.packets.length > 0) {
+            const lastPacket = data.packets[data.packets.length - 1];
+
+            // Build enhanced packet display with ports and service
+            let packetDisplay = `> [${lastPacket.timestamp}] ${lastPacket.protocol} `;
+
+            // Add source IP and port
+            packetDisplay += lastPacket.source;
+            if (lastPacket.src_port) {
+              packetDisplay += `:${lastPacket.src_port}`;
+            }
+
+            packetDisplay += " -> ";
+
+            // Add destination IP and port
+            packetDisplay += lastPacket.destination;
+            if (lastPacket.dst_port) {
+              packetDisplay += `:${lastPacket.dst_port}`;
+            }
+
+            // Add service name if available
+            if (lastPacket.service && lastPacket.service !== "") {
+              packetDisplay += ` [${lastPacket.service}]`;
+            }
+
+            // Add DNS query if available
+            if (lastPacket.dns_query) {
+              packetDisplay += ` Query: ${lastPacket.dns_query}`;
+            }
+
+            packetDisplay += ` (${lastPacket.length} bytes)`;
+
+            addConsoleLine(packetDisplay);
+          }
+
+          // Update protocol chart
+          if (protocolChart && data.protocol_stats) {
+            protocolChart.data.datasets[0].data = [
+              data.protocol_stats.TCP || 0,
+              data.protocol_stats.UDP || 0,
+              data.protocol_stats.ICMP || 0,
+              data.protocol_stats.Other || 0,
+            ];
+            protocolChart.update();
+          }
+        } catch (err) {
+          console.error("Sniffer poll error:", err);
+        }
+      }
+
+      // Traffic Data
+      async function updateTrafficData() {
+        try {
+          const res = await fetch("/api/network/traffic");
+          const data = await res.json();
+
+          if (trafficChart) {
+            trafficChart.data.labels = data.labels || [];
+            trafficChart.data.datasets[0].data = data.inbound || [];
+            trafficChart.data.datasets[1].data = data.outbound || [];
+            trafficChart.update();
+          }
+        } catch (err) {
+          console.error("Traffic data error:", err);
+        }
+      }
+
+      // System Stats
+      async function updateSystemStats() {
+        try {
+          const res = await fetch("/api/system/stats");
+          const data = await res.json();
+
+          document.getElementById("cpuVal").textContent = data.cpu + "%";
+          document.getElementById("cpuBar").style.width = data.cpu + "%";
+
+          document.getElementById("memVal").textContent = data.memory + "%";
+          document.getElementById("memBar").style.width = data.memory + "%";
+
+          document.getElementById("diskVal").textContent = data.disk + "%";
+          document.getElementById("diskBar").style.width = data.disk + "%";
+        } catch (err) {
+          console.error("System stats error:", err);
+        }
+      }
+
+      // Network Devices
+      async function refreshDevices() {
+        try {
+          const res = await fetch("/api/network/devices");
+          const devices = await res.json();
+
+          const tbody = document.getElementById("deviceTableBody");
+
+          if (devices.length === 0) {
+            tbody.innerHTML =
+              '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No devices discovered yet. Start the sniffer.</td></tr>';
+            return;
+          }
+
+          tbody.innerHTML = devices
+            .map(
+              (d) => `
+            <tr>
+              <td>
+                <i class="fa-solid ${
+                  d.icon || "fa-laptop"
+                }" style="color: var(--primary); margin-right: 8px;"></i>
+                <div style="display: inline-block;">
+                  <div style="font-weight: 500;">${d.hostname}</div>
+                  <div style="font-size: 12px; color: var(--text-muted);">${
+                    d.label || "Device"
+                  }</div>
+                </div>
+              </td>
+              <td><code>${d.ip}</code></td>
+              <td><span class="device-status online"><i class="fa-solid fa-circle"></i> ${
+                d.status
+              }</span></td>
+              <td>${formatBytes(d.traffic)}</td>
+              <td><a href="/devices" style="color: var(--primary);">Configure</a></td>
+            </tr>
+          `,
+            )
+            .join("");
+
+          // Update device count
+          document.getElementById("statDevices").textContent = devices.length;
+        } catch (err) {
+          console.error("Devices error:", err);
+        }
+      }
+
+      // Topology with Pan, Zoom, and Drag
+      let topologyZoom = 1;
+      let topologyPanX = 0;
+      let topologyPanY = 0;
+      let isPanning = false;
+      let panStartX = 0;
+      let panStartY = 0;
+      let isDraggingNode = false;
+      let draggedNode = null;
+      let dragOffsetX = 0;
+      let dragOffsetY = 0;
+
+      async function updateTopology() {
+        try {
+          const res = await fetch("/api/network/topology");
+          const data = await res.json();
+
+          const container = document.getElementById("topologyContent");
+          if (!container) return;
+
+          const containerRect = document
+            .getElementById("topologyContainer")
+            .getBoundingClientRect();
+          const centerX = (containerRect.width - 40) / 2;
+
+          let html = "";
+
+          // Internet node
+          html += `
+            <div class="topology-node" data-node="internet" style="left: ${centerX}px; top: 50px;">
+              <div class="icon internet"><i class="fa-solid fa-globe"></i></div>
+              <div class="label">Internet</div>
+            </div>
+          `;
+
+          // Line to router
+          html += `<div class="topology-line" style="left: ${
+            centerX + 25
+          }px; top: 100px; width: 2px; height: 50px;"></div>`;
+
+          // Router node
+          html += `
+            <div class="topology-node" data-node="router" style="left: ${centerX}px; top: 150px;">
+              <div class="icon router"><i class="fa-solid fa-server"></i></div>
+              <div class="label">Router</div>
+            </div>
+          `;
+
+          // Device nodes
+          const devices = data.nodes.filter((n) => n.type === "device");
+          const deviceWidth = 120;
+          const startX = centerX - ((devices.length - 1) * deviceWidth) / 2;
+
+          devices.forEach((device, i) => {
+            const x = startX + i * deviceWidth;
+            // Lines
+            html += `<div class="topology-line" style="left: ${
+              x + 25
+            }px; top: 200px; width: 2px; height: 50px;"></div>`;
+            // Node
+            html += `
+              <div class="topology-node" data-node="device-${i}" style="left: ${x}px; top: 250px;">
+                <div class="icon device"><i class="fa-solid fa-laptop"></i></div>
+                <div class="label">${device.label}</div>
+              </div>
+            `;
+          });
+
+          // Horizontal bus line
+          if (devices.length > 1) {
+            const busWidth = (devices.length - 1) * deviceWidth;
+            html += `<div class="topology-line" style="left: ${
+              startX + 25
+            }px; top: 200px; width: ${busWidth}px; height: 2px;"></div>`;
+          }
+
+          container.innerHTML = html;
+
+          // Apply current transform
+          applyTopologyTransform();
+
+          // Attach drag handlers to nodes
+          document.querySelectorAll(".topology-node").forEach((node) => {
+            node.addEventListener("mousedown", startNodeDrag);
+          });
+        } catch (err) {
+          console.error("Topology error:", err);
+        }
+      }
+
+      function applyTopologyTransform() {
+        const content = document.getElementById("topologyContent");
+        if (content) {
+          content.style.transform = `translate(${topologyPanX}px, ${topologyPanY}px) scale(${topologyZoom})`;
+        }
+        document.getElementById("topologyZoomLevel").textContent =
+          Math.round(topologyZoom * 100) + "%";
+      }
+
+      function zoomTopology(delta) {
+        topologyZoom = Math.max(0.3, Math.min(3, topologyZoom + delta));
+        applyTopologyTransform();
+      }
+
+      function resetTopologyView() {
+        topologyZoom = 1;
+        topologyPanX = 0;
+        topologyPanY = 0;
+        applyTopologyTransform();
+      }
+
+      async function clearNetworkDevices() {
+        if (
+          !confirm(
+            "Clear all discovered network devices? This will reset the topology.",
+          )
+        ) {
+          return;
+        }
+        try {
+          const res = await fetch("/api/reset-network-data", {
+            method: "POST",
+          });
+          const data = await res.json();
+          if (data.success) {
+            updateTopology();
+            refreshDevices();
+            showToast("Network devices cleared", "success");
+          } else {
+            showToast("Failed to clear devices", "error");
+          }
+        } catch (err) {
+          console.error("Clear devices error:", err);
+          showToast("Error clearing devices", "error");
+        }
+      }
+
+      // Pan functionality
+      document
+        .getElementById("topologyContainer")
+        ?.addEventListener("mousedown", (e) => {
+          if (
+            e.target.closest(".topology-node") ||
+            e.target.closest(".topology-controls")
+          )
+            return;
+          isPanning = true;
+          panStartX = e.clientX - topologyPanX;
+          panStartY = e.clientY - topologyPanY;
+          e.preventDefault();
+        });
+
+      document.addEventListener("mousemove", (e) => {
+        if (isPanning && !isDraggingNode) {
+          topologyPanX = e.clientX - panStartX;
+          topologyPanY = e.clientY - panStartY;
+          applyTopologyTransform();
+        } else if (isDraggingNode && draggedNode) {
+          const container = document.getElementById("topologyContainer");
+          const rect = container.getBoundingClientRect();
+          const x =
+            (e.clientX - rect.left - topologyPanX - dragOffsetX) / topologyZoom;
+          const y =
+            (e.clientY - rect.top - topologyPanY - dragOffsetY) / topologyZoom;
+          draggedNode.style.left = x + "px";
+          draggedNode.style.top = y + "px";
+        }
+      });
+
+      document.addEventListener("mouseup", () => {
+        isPanning = false;
+        if (isDraggingNode) {
+          draggedNode?.classList.remove("dragging");
+          isDraggingNode = false;
+          draggedNode = null;
+        }
+      });
+
+      // Zoom with mouse wheel
+      document
+        .getElementById("topologyContainer")
+        ?.addEventListener("wheel", (e) => {
+          e.preventDefault();
+          const delta = e.deltaY > 0 ? -0.05 : 0.05;
+          zoomTopology(delta);
+        });
+
+      // Node dragging
+      function startNodeDrag(e) {
+        isDraggingNode = true;
+        draggedNode = e.currentTarget;
+        draggedNode.classList.add("dragging");
+
+        const rect = draggedNode.getBoundingClientRect();
+        const container = document
+          .getElementById("topologyContainer")
+          .getBoundingClientRect();
+        dragOffsetX = e.clientX - rect.left - (rect.left - container.left);
+        dragOffsetY = e.clientY - rect.top - (rect.top - container.top);
+
+        e.stopPropagation();
+      }
+
+      // ML Anomalies
+      async function checkAnomalies() {
+        try {
+          const res = await fetch("/api/ml/anomalies");
+          const data = await res.json();
+
+          const container = document.getElementById("mlAnomalies");
+
+          if (!data.available) {
+            container.innerHTML =
+              '<p style="color: var(--text-muted); text-align: center;">ML not available</p>';
+            return;
+          }
+
+          if (!data.anomalies || data.anomalies.length === 0) {
+            container.innerHTML = `
+              <div class="empty-state">
+                <i class="fa-solid fa-shield-check" style="color: var(--success);"></i>
+                <p>No anomalies detected</p>
+              </div>
+            `;
+            return;
+          }
+
+          container.innerHTML = data.anomalies
+            .map(
+              (a) => `
+            <div class="alert-item danger">
+              <div class="title"><i class="fa-solid fa-triangle-exclamation"></i> ${
+                a.type
+              }</div>
+              <div class="desc">Value: ${a.value.toFixed(2)} KB at ${
+                a.time
+              }</div>
+            </div>
+          `,
+            )
+            .join("");
+        } catch (err) {
+          console.error("ML anomalies error:", err);
+        }
+      }
+
+      // Dashboard Stats
+      async function loadDashboardData() {
+        try {
+          const statsRes = await fetch("/api/stats");
+          const stats = await statsRes.json();
+
+          document.getElementById("statOnlineUsers").textContent =
+            stats.onlineUsers || 0;
+          document.getElementById("statDevices").textContent =
+            stats.totalDevices || 0;
+          document.getElementById("statActivity").textContent =
+            stats.todayActivity || 0;
+          document.getElementById("statAlerts").textContent =
+            stats.unreadAlerts || 0;
+
+          // User stat
+          if (document.getElementById("userStatActivity")) {
+            document.getElementById("userStatActivity").textContent =
+              stats.todayActivity || 0;
+          }
+
+          // Alerts
+          const alertsRes = await fetch("/api/alerts");
+          const alerts = await alertsRes.json();
+          renderAlerts(alerts.slice(0, 5));
+          renderAllAlerts(alerts);
+
+          // Active users (online devices)
+          const onlineRes = await fetch("/api/online-devices");
+          const onlineDevicesData = await onlineRes.json();
+          // Convert object to array (backend returns {device_id: {...}, ...})
+          const onlineDevices = Array.isArray(onlineDevicesData)
+            ? onlineDevicesData
+            : Object.values(onlineDevicesData || {});
+          renderActiveUsers(onlineDevices);
+        } catch (err) {
+          console.error("Dashboard data error:", err);
+        }
+      }
+
+      function renderAlerts(alerts) {
+        const container = document.getElementById("alertsList");
+        if (!alerts || alerts.length === 0) {
+          container.innerHTML =
+            '<div class="empty-state"><i class="fa-solid fa-check-circle" style="color: var(--success);"></i><p>No alerts</p></div>';
+          return;
+        }
+        container.innerHTML = alerts
+          .map(
+            (a) => `
+          <div class="alert-item ${a.severity || "warning"}">
+            <div class="title">${a.message}</div>
+            <div class="time">${formatTime(a.timestamp)}</div>
+          </div>
+        `,
+          )
+          .join("");
+      }
+
+      function renderAllAlerts(alerts) {
+        const container = document.getElementById("allAlertsList");
+        if (!container) return;
+        if (!alerts || alerts.length === 0) {
+          container.innerHTML =
+            '<div class="empty-state"><i class="fa-solid fa-check-circle" style="color: var(--success);"></i><p>No alerts</p></div>';
+          return;
+        }
+        container.innerHTML = alerts
+          .map(
+            (a) => `
+          <div class="alert-item ${a.severity || "warning"}">
+            <div class="title">${a.message}</div>
+            <div class="desc">${a.type || "Alert"}</div>
+            <div class="time">${formatTime(a.timestamp)}</div>
+          </div>
+        `,
+          )
+          .join("");
+      }
+
+      function renderActiveUsers(devices) {
+        const container = document.getElementById("activeUsersList");
+        if (!devices || devices.length === 0) {
+          container.innerHTML =
+            '<div class="empty-state"><i class="fa-solid fa-user-slash"></i><p>No online users</p></div>';
+          return;
+        }
+
+        // Filter to only show online devices
+        const onlineDevices = devices.filter((d) => d.status === "online");
+
+        if (onlineDevices.length === 0) {
+          container.innerHTML =
+            '<div class="empty-state"><i class="fa-solid fa-user-slash"></i><p>No online users</p></div>';
+          return;
+        }
+
+        container.innerHTML = onlineDevices
+          .map(
+            (d) => `
+          <div style="display: flex; align-items: center; gap: 10px; padding: 10px; border-bottom: 1px solid var(--border);">
+            <div style="width: 8px; height: 8px; background: var(--success); border-radius: 50%; box-shadow: 0 0 8px var(--success);"></div>
+            <div style="flex: 1;">
+              <div style="font-size: 13px; font-weight: 500;">${
+                d.userEmail || d.email || "Unknown User"
+              }</div>
+              <div style="font-size: 11px; color: var(--text-muted);">
+                <i class="fa-brands fa-chrome"></i> ${
+                  d.browser || "Browser"
+                } • Last seen: ${formatTimeAgo(d.lastSeen)}
+              </div>
+            </div>
+            <button onclick="showUserRestrictions('${d.userId}')"
+                    style="padding: 5px 10px; background: var(--primary); border: none; border-radius: 5px; color: white; cursor: pointer; font-size: 11px;"
+                    title="Set Restrictions">
+              <i class="fa-solid fa-ban"></i>
+            </button>
+          </div>
+        `,
+          )
+          .join("");
+      }
+
+      function formatTimeAgo(timestamp) {
+        if (!timestamp) return "unknown";
+        const now = new Date();
+        const then = new Date(timestamp);
+        const seconds = Math.floor((now - then) / 1000);
+
+        if (seconds < 60) return "just now";
+        if (seconds < 3600) return Math.floor(seconds / 60) + "m ago";
+        if (seconds < 86400) return Math.floor(seconds / 3600) + "h ago";
+        return Math.floor(seconds / 86400) + "d ago";
+      }
+
+      function showUserRestrictions(userId) {
+        // Redirect to device settings page where admin can set restrictions
+        window.location.href = `/device_settings?userId=${userId}`;
+      }
+
+      // Reset Network Data
+      async function resetNetworkData() {
+        if (!confirm("Are you sure you want to reset all network data?"))
+          return;
+        try {
+          await fetch("/api/reset-network-data", { method: "POST" });
+          clearConsole();
+          addConsoleLine("> Network data reset.", "success");
+          refreshDevices();
+          updateTopology();
+        } catch (err) {
+          addConsoleLine("> Error resetting data: " + err, "error");
+        }
+      }
+
+      // Helpers
+      function formatTime(ts) {
+        if (!ts) return "-";
+        return new Date(ts).toLocaleString();
+      }
+
+      function formatBytes(bytes) {
+        if (bytes === 0) return "0 B";
+        const k = 1024;
+        const sizes = ["B", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+      }
+
+      // Security Scanning Functions
+      async function runSecurityScan(scanType) {
+        try {
+          const statusMap = {
+            port_scan: "portScanStatus",
+            dns_check: "dnsCheckStatus",
+            open_ports: "openPortsStatus",
+          };
+
+          document.getElementById(statusMap[scanType]).textContent =
+            "Status: Scanning...";
+
+          await fetch("/api/security/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: scanType }),
+          });
+
+          // Poll for results
+          pollSecurityResults(scanType);
+        } catch (err) {
+          console.error("Security scan error:", err);
+        }
+      }
+
+      async function pollSecurityResults(scanType) {
+        const interval = setInterval(async () => {
+          try {
+            const res = await fetch(`/api/security/results/${scanType}`);
+            const data = await res.json();
+
+            const statusMap = {
+              port_scan: "portScanStatus",
+              dns_check: "dnsCheckStatus",
+              open_ports: "openPortsStatus",
+            };
+            const resultsMap = {
+              port_scan: "portScanResults",
+              dns_check: "dnsCheckResults",
+              open_ports: "openPortsResults",
+            };
+
+            if (data.status === "complete") {
+              clearInterval(interval);
+              document.getElementById(statusMap[scanType]).innerHTML =
+                `Status: <span style="color: var(--success);">Complete</span> (${new Date(
+                  data.last_scan,
+                ).toLocaleTimeString()})`;
+              renderSecurityResults(scanType, data.results);
+            } else if (data.status === "error") {
+              clearInterval(interval);
+              document.getElementById(statusMap[scanType]).innerHTML =
+                `Status: <span style="color: var(--danger);">Error</span>`;
+              document.getElementById(resultsMap[scanType]).innerHTML =
+                `<div style="color: var(--danger); font-size: 11px;">Scan failed: ${
+                  data.error || "Unknown error"
+                }</div>`;
+            }
+          } catch (err) {
+            clearInterval(interval);
+            console.error("Poll error:", err);
+          }
+        }, 1000);
+      }
+
+      function renderSecurityResults(scanType, results) {
+        const resultsMap = {
+          port_scan: "portScanResults",
+          dns_check: "dnsCheckResults",
+          open_ports: "openPortsResults",
+        };
+        const container = document.getElementById(resultsMap[scanType]);
+
+        if (!results || results.length === 0) {
+          container.innerHTML =
+            '<div style="color: var(--success); font-size: 11px;"><i class="fa-solid fa-check-circle"></i> No issues found</div>';
+          return;
+        }
+
+        if (scanType === "port_scan") {
+          container.innerHTML = results
+            .map(
+              (device) => `
+            <div style="margin-bottom: 10px; padding: 8px; background: var(--bg-dark); border-radius: 4px;">
+              <div style="font-size: 11px; font-weight: 600; margin-bottom: 5px;">${
+                device.ip
+              }</div>
+              ${device.ports
+                .map(
+                  (p) => `
+                <div style="font-size: 10px; padding: 3px 0; display: flex; justify-content: space-between; border-bottom: 1px solid var(--border);">
+                  <span>Port ${p.port} (${p.service})</span>
+                  <span style="color: ${
+                    p.risk === "high"
+                      ? "var(--danger)"
+                      : p.risk === "medium"
+                        ? "var(--warning)"
+                        : "var(--success)"
+                  };">
+                    ${p.risk.toUpperCase()}
+                  </span>
+                </div>
+              `,
+                )
+                .join("")}
+            </div>
+          `,
+            )
+            .join("");
+        } else if (scanType === "dns_check") {
+          container.innerHTML = results
+            .map(
+              (r) => `
+            <div style="padding: 6px; margin-bottom: 5px; background: var(--bg-dark); border-radius: 4px; border-left: 3px solid ${
+              r.status === "safe" ? "var(--success)" : "var(--danger)"
+            };">
+              <div style="font-size: 11px; font-weight: 600;">${r.domain}</div>
+              <div style="font-size: 10px; color: var(--text-muted);">Resolved: ${
+                r.resolved_ip
+              }</div>
+              <div style="font-size: 10px; color: ${
+                r.status === "safe" ? "var(--success)" : "var(--danger)"
+              };">${r.status.toUpperCase()}</div>
+            </div>
+          `,
+            )
+            .join("");
+        } else if (scanType === "open_ports") {
+          container.innerHTML = results
+            .map(
+              (p) => `
+            <div style="padding: 6px; margin-bottom: 5px; background: var(--bg-dark); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <span style="font-size: 11px; font-weight: 600;">Port ${
+                  p.port
+                }</span>
+                <span style="font-size: 10px; color: var(--text-muted); margin-left: 8px;">${
+                  p.service
+                }</span>
+              </div>
+              <span style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: ${
+                p.risk === "high"
+                  ? "rgba(239, 68, 68, 0.2)"
+                  : p.risk === "medium"
+                    ? "rgba(245, 158, 11, 0.2)"
+                    : "rgba(16, 185, 129, 0.2)"
+              }; color: ${
+                p.risk === "high"
+                  ? "var(--danger)"
+                  : p.risk === "medium"
+                    ? "var(--warning)"
+                    : "var(--success)"
+              };">
+                ${p.risk.toUpperCase()}
+              </span>
+            </div>
+          `,
+            )
+            .join("");
+        }
+      }
+
+      // Enhanced Security Scanner Functions
+      async function startSecurityScan(scanType) {
+        const buttonMap = {
+          port_scan: "btnPortScan",
+          dns_check: "btnDnsCheck",
+          open_ports: "btnOpenPorts",
+        };
+        const statusMap = {
+          port_scan: "statusPortScan",
+          dns_check: "statusDnsCheck",
+          open_ports: "statusOpenPorts",
+        };
+
+        const button = document.getElementById(buttonMap[scanType]);
+        const status = document.getElementById(statusMap[scanType]);
+
+        button.disabled = true;
+        button.innerHTML =
+          '<i class="fa-solid fa-spinner fa-spin"></i> Scanning...';
+        status.textContent = "Status: Scanning...";
+        status.style.color = "var(--warning)";
+
+        try {
+          await fetch("/api/security/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: scanType }),
+          });
+
+          // Poll for results
+          pollSecurityScan(scanType);
+        } catch (err) {
+          console.error("Scan error:", err);
+          status.textContent = "Status: Error";
+          status.style.color = "var(--danger)";
+          button.disabled = false;
+          button.innerHTML = '<i class="fa-solid fa-play"></i> Start Scan';
+        }
+      }
+
+      async function pollSecurityScan(scanType) {
+        const interval = setInterval(async () => {
+          try {
+            const res = await fetch(`/api/security/results/${scanType}`);
+            const data = await res.json();
+
+            const buttonMap = {
+              port_scan: "btnPortScan",
+              dns_check: "btnDnsCheck",
+              open_ports: "btnOpenPorts",
+            };
+            const statusMap = {
+              port_scan: "statusPortScan",
+              dns_check: "statusDnsCheck",
+              open_ports: "statusOpenPorts",
+            };
+
+            const button = document.getElementById(buttonMap[scanType]);
+            const status = document.getElementById(statusMap[scanType]);
+
+            if (data.status === "complete") {
+              clearInterval(interval);
+              status.textContent = `Status: Complete (${new Date(
+                data.last_scan,
+              ).toLocaleTimeString()})`;
+              status.style.color = "var(--success)";
+              button.disabled = false;
+              button.innerHTML = '<i class="fa-solid fa-play"></i> Start Scan';
+              displaySecurityResults(scanType, data.results);
+            } else if (data.status === "error") {
+              clearInterval(interval);
+              status.textContent = "Status: Error";
+              status.style.color = "var(--danger)";
+              button.disabled = false;
+              button.innerHTML = '<i class="fa-solid fa-play"></i> Start Scan';
+            }
+          } catch (err) {
+            clearInterval(interval);
+            console.error("Poll error:", err);
+          }
+        }, 1000);
+      }
+
+      function displaySecurityResults(scanType, results) {
+        if (scanType === "port_scan") {
+          const card = document.getElementById("portScanCard");
+          const container = document.getElementById("portScanResults");
+          card.style.display = "block";
+
+          if (!results || results.length === 0) {
+            container.innerHTML =
+              '<div class="empty-state"><i class="fa-solid fa-check-circle" style="color: var(--success)"></i><p>No open ports found</p></div>';
+            return;
+          }
+
+          container.innerHTML = results
+            .map(
+              (device) => `
+            <div class="card" style="background: var(--bg-secondary); border: 1px solid var(--border); margin-bottom: 15px">
+              <h4 style="font-size: 14px; margin-bottom: 10px; color: var(--primary)">
+                <i class="fa-solid fa-computer"></i> ${device.ip}
+              </h4>
+              <table style="width: 100%; font-size: 12px">
+                <thead>
+                  <tr style="border-bottom: 1px solid var(--border)">
+                    <th style="padding: 8px; text-align: left">Port</th>
+                    <th style="padding: 8px; text-align: left">Service</th>
+                    <th style="padding: 8px; text-align: left">Status</th>
+                    <th style="padding: 8px; text-align: right">Risk</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${device.ports
+                    .map(
+                      (p) => `
+                    <tr style="border-bottom: 1px solid var(--border)">
+                      <td style="padding: 8px">${p.port}</td>
+                      <td style="padding: 8px">${p.service}</td>
+                      <td style="padding: 8px"><span style="color: var(--success)">Open</span></td>
+                      <td style="padding: 8px; text-align: right">
+                        <span style="padding: 4px 8px; border-radius: 4px; font-size: 11px; background: ${
+                          p.risk === "high"
+                            ? "rgba(239, 68, 68, 0.2)"
+                            : p.risk === "medium"
+                              ? "rgba(245, 158, 11, 0.2)"
+                              : "rgba(16, 185, 129, 0.2)"
+                        }; color: ${
+                          p.risk === "high"
+                            ? "var(--danger)"
+                            : p.risk === "medium"
+                              ? "var(--warning)"
+                              : "var(--success)"
+                        }">
+                          ${p.risk.toUpperCase()}
+                        </span>
+                      </td>
+                    </tr>
+                  `,
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+          `,
+            )
+            .join("");
+        } else if (scanType === "dns_check") {
+          const card = document.getElementById("dnsCheckCard");
+          const container = document.getElementById("dnsCheckResults");
+          card.style.display = "block";
+
+          if (!results || results.length === 0) {
+            container.innerHTML =
+              '<div class="empty-state"><i class="fa-solid fa-check-circle" style="color: var(--success)"></i><p>DNS checks passed</p></div>';
+            return;
+          }
+
+          container.innerHTML = `
+            <table style="width: 100%; font-size: 12px">
+              <thead>
+                <tr style="border-bottom: 1px solid var(--border)">
+                  <th style="padding: 8px; text-align: left">Domain</th>
+                  <th style="padding: 8px; text-align: left">Resolved IP</th>
+                  <th style="padding: 8px; text-align: right">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${results
+                  .map(
+                    (r) => `
+                  <tr style="border-bottom: 1px solid var(--border)">
+                    <td style="padding: 8px">${r.domain}</td>
+                    <td style="padding: 8px; font-family: monospace">${
+                      r.resolved_ip
+                    }</td>
+                    <td style="padding: 8px; text-align: right">
+                      <span style="padding: 4px 8px; border-radius: 4px; font-size: 11px; background: ${
+                        r.status === "safe"
+                          ? "rgba(16, 185, 129, 0.2)"
+                          : "rgba(239, 68, 68, 0.2)"
+                      }; color: ${
+                        r.status === "safe" ? "var(--success)" : "var(--danger)"
+                      }">
+                        ${r.status.toUpperCase()}
+                      </span>
+                    </td>
+                  </tr>
+                `,
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          `;
+        } else if (scanType === "open_ports") {
+          const card = document.getElementById("openPortsCard");
+          const container = document.getElementById("openPortsResults");
+          card.style.display = "block";
+
+          if (!results || results.length === 0) {
+            container.innerHTML =
+              '<div class="empty-state"><i class="fa-solid fa-check-circle" style="color: var(--success)"></i><p>No open ports found</p></div>';
+            return;
+          }
+
+          container.innerHTML = `
+            <table style="width: 100%; font-size: 12px">
+              <thead>
+                <tr style="border-bottom: 1px solid var(--border)">
+                  <th style="padding: 8px; text-align: left">Port</th>
+                  <th style="padding: 8px; text-align: left">Service</th>
+                  <th style="padding: 8px; text-align: right">Risk Level</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${results
+                  .map(
+                    (p) => `
+                  <tr style="border-bottom: 1px solid var(--border)">
+                    <td style="padding: 8px; font-weight: 600">${p.port}</td>
+                    <td style="padding: 8px">${p.service}</td>
+                    <td style="padding: 8px; text-align: right">
+                      <span style="padding: 4px 8px; border-radius: 4px; font-size: 11px; background: ${
+                        p.risk === "high"
+                          ? "rgba(239, 68, 68, 0.2)"
+                          : p.risk === "medium"
+                            ? "rgba(245, 158, 11, 0.2)"
+                            : "rgba(16, 185, 129, 0.2)"
+                      }; color: ${
+                        p.risk === "high"
+                          ? "var(--danger)"
+                          : p.risk === "medium"
+                            ? "var(--warning)"
+                            : "var(--success)"
+                      }">
+                        ${p.risk.toUpperCase()}
+                      </span>
+                    </td>
+                  </tr>
+                `,
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          `;
+        }
+      }
+
+      async function loadSecurityResults() {
+        try {
+          const res = await fetch("/api/security/results");
+          const data = await res.json();
+
+          // Update status for each scan type
+          ["port_scan", "dns_check", "open_ports"].forEach((scanType) => {
+            const statusMap = {
+              port_scan: "statusPortScan",
+              dns_check: "statusDnsCheck",
+              open_ports: "statusOpenPorts",
+            };
+
+            const status = document.getElementById(statusMap[scanType]);
+            if (data[scanType] && data[scanType].status === "complete") {
+              status.textContent = `Status: Complete (${new Date(
+                data[scanType].last_scan,
+              ).toLocaleTimeString()})`;
+              status.style.color = "var(--success)";
+              displaySecurityResults(scanType, data[scanType].results);
+            }
+          });
+        } catch (err) {
+          console.error("Load security results error:", err);
+        }
+      }
+
+      // Messages
+      async function loadMessages() {
+        const res = await fetch("/api/messages");
+        const messages = await res.json();
+
+        const unreadRes = await fetch("/api/messages/unread-count");
+        const unread = await unreadRes.json();
+
+        const badge = document.getElementById("msgBadge");
+        if (unread.count > 0) {
+          badge.textContent = unread.count;
+          badge.style.display = "inline";
+        }
+
+        renderMessages(messages);
+      }
+
+      function renderMessages(messages) {
+        const container = document.getElementById("messagesList");
+        if (messages.length === 0) {
+          container.innerHTML =
+            '<p style="color: var(--text-muted); text-align: center;">No messages</p>';
+          return;
+        }
+        container.innerHTML = messages
+          .slice(0, 10)
+          .map(
+            (msg) => `
+          <div style="padding: 10px; border-bottom: 1px solid var(--border); ${
+            !msg.read ? "background: rgba(59, 130, 246, 0.1);" : ""
+          }">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+              <strong style="font-size: 13px;">${msg.subject}</strong>
+              <span style="font-size: 11px; color: var(--text-muted);">${formatTime(
+                msg.timestamp,
+              )}</span>
+            </div>
+            <p style="font-size: 12px; color: var(--text-muted); margin: 0;">From: ${
+              msg.fromEmail
+            }</p>
+            <p style="font-size: 13px; margin-top: 5px;">${msg.content}</p>
+          </div>
+        `,
+          )
+          .join("");
+      }
+
+      window.closeMessageModal = () => {
+        document.getElementById("messageModal").classList.remove("active");
+      };
+
+      document.getElementById("messagesNav")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        document.getElementById("messageModal").classList.add("active");
+      });
+
+      document
+        .getElementById("sendMessageForm")
+        ?.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const subject = document.getElementById("msgSubject").value;
+          const content = document.getElementById("msgContent").value;
+          await fetch("/api/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ subject, content, toUserId: "admin" }),
+          });
+          document.getElementById("msgSubject").value = "";
+          document.getElementById("msgContent").value = "";
+          loadMessages();
+          alert("Message sent!");
+        });
+
+      // Check sniffer status on load
+      async function checkSnifferStatus() {
+        try {
+          const res = await fetch("/api/sniffer/status");
+          const data = await res.json();
+
+          document.getElementById("snifferMode").textContent =
+            data.scapy_available ? "Real Capture" : "Simulation";
+
+          if (data.active) {
+            document.getElementById("startSnifferBtn").disabled = true;
+            document.getElementById("stopSnifferBtn").disabled = false;
+            document.getElementById("snifferStatus").textContent = "Running";
+            captureStartTime = new Date();
+            snifferInterval = setInterval(pollSnifferData, 1000);
+            addConsoleLine(
+              "> Sniffer is running in background. Resuming view...",
+              "success",
+            );
+          }
+        } catch (err) {
+          document.getElementById("snifferMode").textContent = "Unavailable";
+        }
+      }
+
+      // Auto-open messages modal if URL param present
+      if (window.location.search.includes("openMessages=true")) {
+        setTimeout(() => {
+          document.getElementById("messageModal").classList.add("active");
+        }, 500);
+        window.history.replaceState({}, document.title, "/dashboard");
+      }
+
+      // Initialize on load
+      document.addEventListener("DOMContentLoaded", () => {
+        if (userRole === "admin") {
+          initCharts();
+          checkSnifferStatus();
+          loadDashboardData();
+          updateTopology();
+          refreshDevices(); // Load devices on initial page load
+
+          // Polling
+          setInterval(updateSystemStats, 2000);
+          setInterval(updateTrafficData, 2000);
+          setInterval(loadDashboardData, 5000); // Refresh stats every 5 seconds
+          setInterval(refreshDevices, 10000);
+          setInterval(updateTopology, 15000);
+          setInterval(checkAnomalies, 10000);
+
+          // Send heartbeat for admin online status
+          sendHeartbeat();
+          setInterval(sendHeartbeat, 30000); // Every 30 seconds
+        } else {
+          // User dashboard
+          loadUserDashboard();
+          setInterval(loadUserDashboard, 5000); // Auto-refresh user dashboard every 5 seconds
+
+          // Send heartbeat for user online status
+          sendHeartbeat();
+          setInterval(sendHeartbeat, 30000); // Every 30 seconds
+        }
+      });
+
+      // Send heartbeat to keep user marked as online
+      async function sendHeartbeat() {
+        try {
+          await fetch("/api/auth/heartbeat", { method: "POST" });
+        } catch (error) {
+          console.error("Failed to send heartbeat:", error);
+        }
+      }
+
+      async function loadUserDashboard() {
+        loadDashboardData();
+        loadMessages();
+        loadMyRestrictions();
+        loadMyActivity();
+      }
+
+      async function loadMyRestrictions() {
+        try {
+          const session = await fetch("/api/auth/session").then((r) =>
+            r.json(),
+          );
+          if (!session.loggedIn) return;
+
+          const restrictRes = await fetch(
+            `/api/restrictions?userId=${session.userId}`,
+          );
+          const restrictions = await restrictRes.json();
+
+          const blockedRes = await fetch(
+            `/api/blocked-sites?userId=${session.userId}`,
+          );
+          const blockedSites = await blockedRes.json();
+
+          const container = document.getElementById("myRestrictions");
+          let html = "";
+
+          if (restrictions && restrictions.schedule) {
+            html += `
+              <div style="padding: 10px; background: var(--bg-dark); border-radius: 8px; margin-bottom: 10px;">
+                <strong><i class="fa-solid fa-clock"></i> Internet Schedule</strong>
+                <p style="margin: 5px 0; font-size: 13px;">${
+                  restrictions.schedule.days || "All days"
+                }: ${restrictions.schedule.startTime || "00:00"} - ${
+                  restrictions.schedule.endTime || "23:59"
+                }</p>
+              </div>
+            `;
+          }
+
+          if (blockedSites && blockedSites.length > 0) {
+            html += `
+              <div style="padding: 10px; background: var(--bg-dark); border-radius: 8px;">
+                <strong><i class="fa-solid fa-ban"></i> Blocked Sites</strong>
+                <ul style="margin: 5px 0 0 20px; font-size: 13px;">
+                  ${blockedSites.map((site) => `<li>${site}</li>`).join("")}
+                </ul>
+              </div>
+            `;
+          }
+
+          if (!html) {
+            html =
+              '<div class="empty-state"><i class="fa-solid fa-check-circle" style="color: var(--success);"></i><p>No restrictions applied</p></div>';
+          }
+
+          container.innerHTML = html;
+        } catch (err) {
+          console.error("Restrictions error:", err);
+        }
+      }
+
+      async function loadMyActivity() {
+        try {
+          const session = await fetch("/api/auth/session").then((r) =>
+            r.json(),
+          );
+          if (!session.loggedIn) return;
+
+          const res = await fetch(
+            `/api/activity?userId=${session.userId}&limit=20`,
+          );
+          const activities = await res.json();
+
+          const tbody = document.getElementById("userActivityTable");
+          if (!activities || activities.length === 0) {
+            tbody.innerHTML =
+              '<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No activity recorded</td></tr>';
+            return;
+          }
+
+          tbody.innerHTML = activities
+            .map(
+              (act) => `
+            <tr>
+              <td><span class="status status-${
+                act.action === "blocked" ? "blocked" : "active"
+              }">${act.action}</span></td>
+              <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${
+                act.url || "-"
+              }</td>
+              <td>${formatTime(act.timestamp)}</td>
+            </tr>
+          `,
+            )
+            .join("");
+        } catch (err) {
+          console.error("Activity error:", err);
+        }
+      }
+    </script>
+    <script type="module">
+      import { auth } from "/static/js/firebase-config.js";
+      import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+      onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          document.getElementById("userEmail").textContent = user.email;
+
+          const sessionRes = await fetch("/api/auth/session");
+          const session = await sessionRes.json();
+
+          if (session.loggedIn) {
+            const roleBadge = document.getElementById("userRole");
+            roleBadge.textContent = session.role.toUpperCase();
+            roleBadge.className = "role-badge role-" + session.role;
+          } else {
+            window.location.href = "/login";
+          }
+        } else {
+          window.location.href = "/login";
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Access Blocked - AuthTrack</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0f1219 0%, #1a1f2e 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #e2e8f0;
+    }
+    
+    .container {
+      text-align: center;
+      padding: 40px;
+      max-width: 500px;
+    }
+    
+    .icon {
+      width: 100px;
+      height: 100px;
+      background: rgba(239, 68, 68, 0.15);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 30px;
+    }
+    
+    .icon svg {
+      width: 50px;
+      height: 50px;
+      fill: #ef4444;
+    }
+    
+    h1 {
+      font-size: 28px;
+      margin-bottom: 15px;
+      color: #ef4444;
+    }
+    
+    p {
+      font-size: 16px;
+      color: #94a3b8;
+      margin-bottom: 30px;
+      line-height: 1.6;
+    }
+    
+    .info-box {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .info-box h3 {
+      font-size: 14px;
+      color: #3b82f6;
+      margin-bottom: 10px;
+    }
+    
+    .info-box p {
+      font-size: 13px;
+      margin: 0;
+    }
+    
+    .btn {
+      display: inline-block;
+      padding: 12px 24px;
+      background: #3b82f6;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: 0.2s;
+    }
+    
+    .btn:hover {
+      background: #2563eb;
+    }
+    
+    .footer {
+      margin-top: 40px;
+      font-size: 12px;
+      color: #64748b;
+    }
+    
+    .footer a {
+      color: #3b82f6;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h2v2h-2v-2zm0-8h2v6h-2V9z"/>
+      </svg>
+    </div>
+    
+    <h1>Access Blocked</h1>
+    
+    <p>
+      The website you're trying to access has been blocked by your network administrator.
+    </p>
+    
+    <div class="info-box">
+      <h3>Why am I seeing this?</h3>
+      <p>
+        Your organization has restricted access to this website. 
+        This could be due to security policies, time-based restrictions, 
+        or content filtering rules.
+      </p>
+    </div>
+    
+    <a href="javascript:history.back()" class="btn">← Go Back</a>
+    
+    <div class="footer">
+      <p>Managed by <a href="http://127.0.0.1:5000" target="_blank">AuthTrack</a></p>
+      <p>If you believe this is a mistake, contact your administrator.</p>
+    </div>
+  </div>
+</body>
+</html>
