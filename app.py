@@ -2178,13 +2178,15 @@ def api_ml_anomalies():
     # Simple anomaly detection on traffic patterns
     with traffic_lock:
         if len(traffic_history['inbound']) < 10:
-            return jsonify({'available': True, 'anomalies': [], 'message': 'Not enough data'})
+            return jsonify({'available': True, 'anomalies': [], 'message': 'Not enough data (need 10+ samples)'})
         
-        # Prepare data
-        data = np.array(traffic_history['inbound']).reshape(-1, 1)
+        # Prepare data - traffic_history['inbound'] is in KB, convert to bytes for threshold comparison
+        data_kb = np.array(traffic_history['inbound'])
+        data_bytes = data_kb * 1024  # Convert KB to bytes
+        data = data_bytes.reshape(-1, 1)
         
         try:
-            # Calculate baseline (average traffic)
+            # Calculate baseline (average traffic in bytes)
             baseline = np.mean(data)
             
             # Set threshold with ABSOLUTE maximum cap
@@ -2197,32 +2199,40 @@ def api_ml_anomalies():
             
             anomalies = []
             for i, pred in enumerate(predictions):
-                traffic_value = traffic_history['inbound'][i]
+                traffic_value_bytes = data_bytes[i]  # Use byte value for comparison
                 
                 # Treat as anomaly if ANY of these conditions:
                 # 1. ML detected as anomaly AND exceeds min_threshold
                 # 2. OR traffic exceeds 600 bytes (absolute threshold)
-                is_ml_anomaly = (pred == -1 and traffic_value >= min_threshold)
-                is_large_packet = (traffic_value >= 600)
+                is_ml_anomaly = (pred == -1 and traffic_value_bytes >= min_threshold)
+                is_large_packet = (traffic_value_bytes >= 600)
                 
                 if is_ml_anomaly or is_large_packet:
                     anomalies.append({
                         'time': traffic_history['labels'][i],
-                        'value': traffic_value,
-                        'type': 'traffic_spike',
+                        'value': round(traffic_value_bytes, 2),  # Store in bytes
+                        'value_kb': round(traffic_value_bytes / 1024, 2),  # Also provide KB
+                        'type': 'Traffic Spike',
                         'baseline': round(baseline, 2),
                         'threshold': round(min_threshold, 2)
                     })
+            
+            # Debug logging
+            if anomalies:
+                print(f"ML ANOMALIES DETECTED: {len(anomalies)} anomalies found")
+                print(f"  Latest anomaly: {anomalies[-1]['value']} bytes at {anomalies[-1]['time']}")
+                print(f"  Baseline: {baseline:.2f} bytes, Threshold: {min_threshold:.2f} bytes")
             
             # Create dashboard alerts for anomalies
             if anomalies:
                 latest_anomaly = anomalies[-1]
                 # Always create alert for dashboard display
                 create_alert(
-                    'anomaly',
-                    f"Traffic spike detected: {latest_anomaly['value']:.0f} bytes (baseline: {baseline:.0f} bytes, threshold: {min_threshold:.0f} bytes)",
+                    'ml_anomaly',
+                    f"ML Anomaly: Traffic spike {latest_anomaly['value_kb']:.2f} KB detected (threshold: {min_threshold/1024:.2f} KB)",
                     'danger'
                 )
+                print(f"  Alert created in dashboard")
                 
                 # Send Telegram notification only for significant anomalies (5x baseline or > 500 bytes)
                 if admin_user_id and latest_anomaly['value'] >= max(500, baseline * 5):
@@ -2373,6 +2383,13 @@ if __name__ == '__main__':
     print("="*50)
     print(f"  Server: http://127.0.0.1:5000")
     print(f"  Firebase: Connected")
+    print("="*50 + "\n")
+    
+    # Test ML initialization
+    if init_ml():
+        print("  ML Anomaly Detection: ✓ Ready (scikit-learn loaded)")
+    else:
+        print("  ML Anomaly Detection: ✗ Disabled (run: pip install scikit-learn)")
     print("="*50 + "\n")
     
     # Cleanup stale online status

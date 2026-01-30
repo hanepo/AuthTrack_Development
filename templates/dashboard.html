@@ -1738,13 +1738,16 @@
           container.innerHTML = data.anomalies
             .map(
               (a) => `
-            <div class="alert-item danger">
-              <div class="title"><i class="fa-solid fa-triangle-exclamation"></i> ${
-                a.type
-              }</div>
-              <div class="desc">Value: ${a.value.toFixed(2)} KB at ${
-                a.time
-              }</div>
+            <div class="alert-item danger" style="margin-bottom: 10px; padding: 12px;">
+              <div class="title">
+                <i class="fa-solid fa-triangle-exclamation"></i> ${a.type}
+              </div>
+              <div class="desc" style="margin-top: 5px;">
+                <strong>${a.value_kb ? a.value_kb.toFixed(2) : (a.value / 1024).toFixed(2)} KB</strong> at ${a.time}
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">
+                Baseline: ${(a.baseline / 1024).toFixed(2)} KB | Threshold: ${(a.threshold / 1024).toFixed(2)} KB
+              </div>
             </div>
           `,
             )

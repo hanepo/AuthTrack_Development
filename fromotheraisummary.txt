@@ -1,0 +1,91 @@
+[1 tool called]
+
+
+Verifying the report's described features against the codebase.
+
+
+[4 tools called]
+
+
+Checking the Chrome extension's blocking flow and how the user activity summary is displayed:
+
+
+[3 tools called]
+
+
+Here’s a concise check of **report.txt** against the codebase.
+
+---
+
+## Report vs implementation
+
+### **User functional tests (Table 3.19)** — implemented
+
+| Test | Expected | In code |
+|------|----------|--------|
+| Login with valid credentials | Redirect to user dashboard | `api_login` → 2FA → `api_verify_2fa` → redirect `/user/dashboard` |
+| Login with invalid credentials | Error message | Validation in `api_login`; Firebase Auth handles wrong password |
+| Access allowed websites | Permitted | Extension only blocks URLs in `blockedSites` / restrictions |
+| Access blocked website | Denied + warning | Extension `shouldBlock()` → `blocked.html`; `reportActivity(..., 'blocked')`; `notify_blocked_attempt()` for Telegram |
+| Generate network traffic | Captured and logged | `/api/activity` (extension), packet sniffer when Scapy is used |
+| Abnormal network behavior | Flagged by anomaly | `api_ml_anomalies` (Isolation Forest), `check_suspicious_activity()` for blocked attempts |
+| View own activity summary | Network usage / stats | User dashboard + `/api/activity`, `/api/network/stats`, `/api/network/packets` |
+| Logout | Session ended, redirect to login | `/logout` clears session and redirects to login |
+
+### **Authentication tests (Table 3.20)** — implemented
+
+- Login page, valid/invalid password, non-registered user: handled by login flow and Firebase.
+- Correct/incorrect OTP: `api_verify_2fa` accepts or rejects.
+- Login without OTP: 2FA required after Firebase auth (redirect to `/2fa`).
+- Role-based access: `@admin_required` and `@login_required`; `session['user_role']` used for routes.
+- Logout: implemented as above.
+
+### **Anomaly detection (Table 3.21)** — implemented
+
+- Normal vs spike: `api_ml_anomalies` uses Isolation Forest on traffic history.
+- Blocked-website alert: `check_suspicious_activity()` creates an alert when `action == 'blocked'`.
+- Alerts stored: `create_alert()` writes to Firebase.
+- Admin Telegram alert: `notify_security_alert(admin_user_id, 'anomaly', ...)` when anomaly is detected and admin is logged in.
+
+### **Admin functional tests (Table 3.18)** — implemented
+
+- Admin login (valid/invalid), real-time traffic, anomalies list, time-based access, block website/domain, user activity logs, logout: all have corresponding routes and logic (dashboard, `/api/network/traffic`, `/api/ml/anomalies`, `/api/restrictions`, `/api/blocked-sites`, `/api/activity`, etc.).
+- Telegram alert for admin: sent when `admin_user_id` is set (after admin login) for anomalies and other security alerts.
+
+---
+
+## One bug: failed-login Telegram notification
+
+**Report:** Admin receives Telegram alert (e.g. for failed login).
+
+**Code:** In `notify_failed_login()` the admin is identified by a **literal string**:
+
+```python
+admin_id = "admin_user_id"  # You can modify this to get actual admin ID
+chat_id = get_user_telegram_id(admin_id)
+```
+
+So the failed-login Telegram is sent only if there is a Firebase user with ID exactly `"admin_user_id"`. It does **not** use the actual admin’s user ID (the one set in `admin_user_id` when an admin logs in). So in practice, **failed-login Telegram alerts do not reach the real admin** unless you fix this (e.g. resolve the real admin’s `user_id` from Firebase and use their `telegram_chat_id`).
+
+---
+
+## Optional dependencies
+
+These features are behind imports and may be disabled if the package is missing:
+
+- **Scapy** – packet sniffer (real-time packet capture).
+- **scikit-learn** – ML anomaly detection (Isolation Forest).
+- **python-telegram-bot** – all Telegram notifications.
+- **psutil** – system stats (CPU/memory/disk) on dashboard.
+
+If they’re not installed, the app still runs but those parts are turned off (with warnings in the console).
+
+---
+
+## Summary
+
+- **Functionality:** Everything described in report.txt has corresponding implementation (login, 2FA, roles, blocking, traffic, anomaly, alerts, time restrictions, admin Telegram for anomalies, etc.).
+- **Bug:** Failed-login Telegram uses a hardcoded `"admin_user_id"`, so it does not actually notify the real admin.
+- **Actual results in the report:** The “Actual Result” columns in the tables are mostly empty; the document reads as a test-case template, not as filled-in test results. So “does everything work?” in terms of *design*: yes, except the failed-login Telegram behavior above.
+
+If you want, I can suggest a concrete code change so failed-login notifications use the real admin’s Telegram (e.g. by storing or resolving the admin user ID and calling `get_user_telegram_id` with that).
