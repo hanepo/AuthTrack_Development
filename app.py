@@ -2170,84 +2170,139 @@ def api_network_topology():
 @app.route('/api/ml/anomalies')
 @admin_required
 def api_ml_anomalies():
-    """Detect anomalies using ML"""
+    """Detect anomalies using ML (traffic values stored in KB)"""
+    global anomaly_detector
+
     # Initialize ML on first use
     if not init_ml():
-        return jsonify({'available': False, 'anomalies': []})
-    
-    # Simple anomaly detection on traffic patterns
+        return jsonify({'available': False, 'anomalies': [], 'message': 'ML not available'})
+
     with traffic_lock:
+        # Need enough points to learn baseline
         if len(traffic_history['inbound']) < 10:
             return jsonify({'available': True, 'anomalies': [], 'message': 'Not enough data (need 10+ samples)'})
-        
-        # Prepare data - traffic_history['inbound'] is in KB, convert to bytes for threshold comparison
-        data_kb = np.array(traffic_history['inbound'])
-        data_bytes = data_kb * 1024  # Convert KB to bytes
-        data = data_bytes.reshape(-1, 1)
-        
+
+        # IMPORTANT: traffic_history['inbound'] is in KB (because /api/network/traffic divides by 1024)
+        # Ensure we have valid numeric data
         try:
-            # Calculate baseline (average traffic in bytes)
-            baseline = np.mean(data)
+            data = np.array(traffic_history['inbound'], dtype=float).reshape(-1, 1)
             
-            # Set threshold with ABSOLUTE maximum cap
-            # Use the LOWER of: (baseline * 3) or 600 bytes
-            # This ensures 600+ bytes ALWAYS triggers, regardless of baseline
-            min_threshold = min(max(120, baseline * 3), 600)
-            
-            # Fit and predict
-            predictions = anomaly_detector.fit_predict(data)
-            
-            anomalies = []
-            for i, pred in enumerate(predictions):
-                traffic_value_bytes = data_bytes[i]  # Use byte value for comparison
+            # Check for NaN or invalid values
+            if np.any(np.isnan(data)) or np.any(np.isinf(data)):
+                print("WARNING: Invalid data detected in traffic history (NaN or Inf)")
+                # Remove NaN/Inf values
+                valid_mask = ~(np.isnan(data) | np.isinf(data))
+                data = data[valid_mask]
                 
-                # Treat as anomaly if ANY of these conditions:
-                # 1. ML detected as anomaly AND exceeds min_threshold
-                # 2. OR traffic exceeds 600 bytes (absolute threshold)
-                is_ml_anomaly = (pred == -1 and traffic_value_bytes >= min_threshold)
-                is_large_packet = (traffic_value_bytes >= 600)
+                if len(data) < 10:
+                    return jsonify({'available': True, 'anomalies': [], 'message': 'Not enough valid data'})
+        except Exception as e:
+            print(f"ERROR: Failed to prepare data: {e}")
+            return jsonify({'available': True, 'anomalies': [], 'error': f'Data preparation error: {str(e)}'})
+
+    try:
+        baseline_kb = float(np.mean(data))
+        std_kb = float(np.std(data))  # helpful for explanation + thresholding
+        
+        # Prevent NaN values
+        if np.isnan(baseline_kb) or np.isnan(std_kb):
+            print(f"WARNING: NaN detected - baseline: {baseline_kb}, std: {std_kb}")
+            return jsonify({'available': True, 'anomalies': [], 'message': 'Invalid baseline calculation'})
+
+        # --- Thresholds (KB) ---
+        # Dynamic threshold: baseline + 3*std (more robust than baseline*3 when baseline is small)
+        dynamic_threshold_kb = baseline_kb + (3 * std_kb)
+
+        # Absolute threshold: 50 KB (reasonable minimum for spike detection)
+        # Changed from 0.6 KB to 50 KB based on client's examples
+        absolute_threshold_kb = 50.0
+
+        # Final threshold: choose the higher one to reduce false positives
+        threshold_kb = max(dynamic_threshold_kb, absolute_threshold_kb)
+
+        # Fit & predict (Isolation Forest)
+        predictions = anomaly_detector.fit_predict(data)
+
+        anomalies = []
+        for i, pred in enumerate(predictions):
+            # Safety check for index bounds
+            if i >= len(traffic_history['inbound']):
+                break
                 
-                if is_ml_anomaly or is_large_packet:
-                    anomalies.append({
-                        'time': traffic_history['labels'][i],
-                        'value': round(traffic_value_bytes, 2),  # Store in bytes
-                        'value_kb': round(traffic_value_bytes / 1024, 2),  # Also provide KB
-                        'type': 'Traffic Spike',
-                        'baseline': round(baseline, 2),
-                        'threshold': round(min_threshold, 2)
-                    })
+            value_kb = float(traffic_history['inbound'][i])
             
-            # Debug logging
-            if anomalies:
-                print(f"ML ANOMALIES DETECTED: {len(anomalies)} anomalies found")
-                print(f"  Latest anomaly: {anomalies[-1]['value']} bytes at {anomalies[-1]['time']}")
-                print(f"  Baseline: {baseline:.2f} bytes, Threshold: {min_threshold:.2f} bytes")
+            # Skip invalid values
+            if np.isnan(value_kb) or np.isinf(value_kb):
+                continue
             
-            # Create dashboard alerts for anomalies
-            if anomalies:
-                latest_anomaly = anomalies[-1]
-                # Always create alert for dashboard display
-                create_alert(
-                    'ml_anomaly',
-                    f"ML Anomaly: Traffic spike {latest_anomaly['value_kb']:.2f} KB detected (threshold: {min_threshold/1024:.2f} KB)",
-                    'danger'
-                )
-                print(f"  Alert created in dashboard")
+            if pred == -1 and value_kb >= threshold_kb:
+                anomalies.append({
+                    'time': traffic_history['labels'][i],
+                    'value_kb': round(value_kb, 3),
+                    'type': 'traffic_spike',
+                    'baseline_kb': round(baseline_kb, 3),
+                    'threshold_kb': round(threshold_kb, 3)
+                })
+
+        # Debug logging
+        if anomalies:
+            print(f"\n{'='*60}")
+            print(f"ML ANOMALIES DETECTED: {len(anomalies)} anomalies found")
+            latest = anomalies[-1]
+            print(f"  Latest spike: {latest['value_kb']} KB at {latest['time']}")
+            print(f"  Baseline: {baseline_kb:.3f} KB | Std Dev: {std_kb:.3f} KB")
+            print(f"  Threshold: {threshold_kb:.3f} KB")
+            print(f"{'='*60}\n")
+
+        # If anomalies found, create ONE alert for latest (avoid dashboard spam)
+        if anomalies:
+            latest = anomalies[-1]
+
+            # Create dashboard alert (always)
+            create_alert(
+                'ml_anomaly',
+                f"Traffic spike detected: {latest['value_kb']} KB (baseline: {latest['baseline_kb']} KB, threshold: {latest['threshold_kb']} KB)",
+                'danger'
+            )
+            print(f"  ✓ Dashboard alert created")
+
+            # Telegram only for significant spikes (avoid spam)
+            # Significant = 50 KB minimum OR 3x baseline (whichever is larger)
+            significant_kb = max(50.0, baseline_kb * 3)
+
+            if latest['value_kb'] >= significant_kb:
+                print(f"  → Spike is SIGNIFICANT ({latest['value_kb']} KB >= {significant_kb:.2f} KB)")
                 
-                # Send Telegram notification only for significant anomalies (5x baseline or > 500 bytes)
-                if admin_user_id and latest_anomaly['value'] >= max(500, baseline * 5):
-                    notify_security_alert(
-                        admin_user_id,
-                        'anomaly',
-                        f"Significant traffic spike detected: {latest_anomaly['value']:.2f} bytes at {latest_anomaly['time']} (baseline: {baseline:.2f} bytes)"
-                    )
-            
-            return jsonify({
-                'available': True,
-                'anomalies': anomalies[-5:],  # Last 5 anomalies
-                'status': 'monitoring',
-                'baseline': round(baseline, 2),
-                'threshold': round(min_threshold, 2)
+                if admin_user_id:
+                    print(f"  → Sending Telegram alert to admin: {admin_user_id}")
+                    try:
+                        notify_security_alert(
+                            admin_user_id,
+                            'anomaly',
+                            f"Significant traffic spike: {latest['value_kb']} KB at {latest['time']} (baseline: {round(baseline_kb,3)} KB)"
+                        )
+                        print(f"  ✓ Telegram notification sent")
+                    except Exception as e:
+                        print(f"  ✗ Telegram notification failed: {e}")
+                else:
+                    print(f"  ✗ No admin_user_id set - Telegram notification skipped")
+            else:
+                print(f"  → Spike below significant threshold ({latest['value_kb']} KB < {significant_kb:.2f} KB) - Telegram skipped")
+
+        return jsonify({
+            'available': True,
+            'anomalies': anomalies[-5:],  # last 5
+            'status': 'monitoring',
+            'baseline_kb': round(baseline_kb, 3),
+            'std_kb': round(std_kb, 3),
+            'threshold_kb': round(threshold_kb, 3)
+        })
+
+    except Exception as e:
+        print(f"ERROR in ML anomaly detection: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'available': True, 'anomalies': [], 'error': str(e)})
             })
         except Exception as e:
             return jsonify({'available': True, 'anomalies': [], 'error': str(e)})
