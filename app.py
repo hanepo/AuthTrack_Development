@@ -915,8 +915,10 @@ def api_verify_2fa():
     now = datetime.now(timezone.utc).isoformat()
     
     # Store admin user ID for notifications (if admin)
+    global admin_user_id
     if user_role == 'admin':
         admin_user_id = user_id
+        print(f"✓ Admin logged in - Telegram notifications enabled for user: {user_id}")
     
     # Update user last login
     requests.patch(
@@ -2303,9 +2305,6 @@ def api_ml_anomalies():
         import traceback
         traceback.print_exc()
         return jsonify({'available': True, 'anomalies': [], 'error': str(e)})
-            })
-        except Exception as e:
-            return jsonify({'available': True, 'anomalies': [], 'error': str(e)})
 
 @app.route('/api/reset-network-data', methods=['POST'])
 @admin_required
