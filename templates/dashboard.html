@@ -1746,7 +1746,7 @@
                 <strong>${a.value_kb ? a.value_kb.toFixed(2) : (a.value / 1024).toFixed(2)} KB</strong> at ${a.time}
               </div>
               <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">
-                Baseline: ${(a.baseline / 1024).toFixed(2)} KB | Threshold: ${(a.threshold / 1024).toFixed(2)} KB
+                Baseline: ${(a.baseline_kb || 0).toFixed(2)} KB | Threshold: ${(a.threshold_kb || 0).toFixed(2)} KB
               </div>
             </div>
           `,
