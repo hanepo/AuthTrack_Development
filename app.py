@@ -2187,25 +2187,31 @@ def api_ml_anomalies():
         # IMPORTANT: traffic_history['inbound'] is in KB (because /api/network/traffic divides by 1024)
         # Ensure we have valid numeric data
         try:
-            data = np.array(traffic_history['inbound'], dtype=float).reshape(-1, 1)
+            # First convert to 1D array for filtering
+            data_1d = np.array(traffic_history['inbound'], dtype=float)
             
             # Check for NaN or invalid values
-            if np.any(np.isnan(data)) or np.any(np.isinf(data)):
+            if np.any(np.isnan(data_1d)) or np.any(np.isinf(data_1d)):
                 print("WARNING: Invalid data detected in traffic history (NaN or Inf)")
                 # Remove NaN/Inf values
-                valid_mask = ~(np.isnan(data) | np.isinf(data))
-                data = data[valid_mask]
+                valid_mask = ~(np.isnan(data_1d) | np.isinf(data_1d))
+                data_1d = data_1d[valid_mask]
                 
-                if len(data) < 10:
+                if len(data_1d) < 10:
                     return jsonify({'available': True, 'anomalies': [], 'message': 'Not enough valid data'})
+            
+            # Calculate baseline and std from clean 1D data
+            baseline_kb = float(np.mean(data_1d))
+            std_kb = float(np.std(data_1d))
+            
+            # Now reshape for ML model
+            data = data_1d.reshape(-1, 1)
+            
         except Exception as e:
             print(f"ERROR: Failed to prepare data: {e}")
             return jsonify({'available': True, 'anomalies': [], 'error': f'Data preparation error: {str(e)}'})
 
     try:
-        baseline_kb = float(np.mean(data))
-        std_kb = float(np.std(data))  # helpful for explanation + thresholding
-        
         # Prevent NaN values
         if np.isnan(baseline_kb) or np.isnan(std_kb):
             print(f"WARNING: NaN detected - baseline: {baseline_kb}, std: {std_kb}")
