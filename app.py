@@ -157,8 +157,15 @@ def send_telegram_notification(chat_id, message, parse_mode='HTML'):
     def send_async():
         try:
             # Create new event loop for this thread
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            # Get or create event loop for this thread
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_closed():
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
             
             # Send message
             loop.run_until_complete(
@@ -168,7 +175,7 @@ def send_telegram_notification(chat_id, message, parse_mode='HTML'):
                     parse_mode=parse_mode
                 )
             )
-            loop.close()
+            # Don't close loop - let it stay open for thread
             print(f"Telegram notification sent to {chat_id}")
             return True
         except TelegramError as e:
@@ -2275,8 +2282,9 @@ def api_ml_anomalies():
             print(f"  ✓ Dashboard alert created")
 
             # Telegram only for significant spikes (avoid spam)
-            # Significant = 50 KB minimum OR 3x baseline (whichever is larger)
-            significant_kb = max(50.0, baseline_kb * 3)
+            # Significant = 250 KB minimum OR 5x baseline (whichever is larger)
+            # This prevents spam for small networks with low baseline
+            significant_kb = max(250.0, baseline_kb * 5)
 
             if latest['value_kb'] >= significant_kb:
                 print(f"  → Spike is SIGNIFICANT ({latest['value_kb']} KB >= {significant_kb:.2f} KB)")
