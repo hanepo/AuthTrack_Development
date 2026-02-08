@@ -515,9 +515,11 @@
                 <p>Network Devices</p>
               </div>
               <div class="stat-card">
-                <div class="icon orange"><i class="fa-solid fa-globe"></i></div>
+                <div class="icon orange">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
                 <h3 id="statActivity">0</h3>
-                <p>Recent Activity (24h)</p>
+                <p>Anomalies Detected (24h)</p>
               </div>
               <div class="stat-card">
                 <div class="icon red"><i class="fa-solid fa-bell"></i></div>
@@ -1077,9 +1079,9 @@
           <!-- User Stats -->
           <div class="grid-1" style="margin-bottom: 20px">
             <div class="stat-card">
-              <div class="icon orange"><i class="fa-solid fa-globe"></i></div>
+              <div class="icon blue"><i class="fa-solid fa-ethernet"></i></div>
               <h3 id="userStatActivity">0</h3>
-              <p>My Activity (24h)</p>
+              <p>Packets Captured</p>
             </div>
           </div>
 
@@ -1772,10 +1774,10 @@
           document.getElementById("statAlerts").textContent =
             stats.unreadAlerts || 0;
 
-          // User stat
+          // User stat - show packet count for users
           if (document.getElementById("userStatActivity")) {
             document.getElementById("userStatActivity").textContent =
-              stats.todayActivity || 0;
+              stats.totalPackets || 0;
           }
 
           // Alerts

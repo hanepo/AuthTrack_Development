@@ -1685,25 +1685,30 @@ def api_stats():
     alerts_data = alerts_resp.json() or {}
     unread_alerts = sum(1 for a in alerts_data.values() if not a.get('read'))
     
-    # Get activity count (recent activities - last 24 hours)
-    activity_resp = requests.get(f"{FIREBASE_DB_URL}/activity_logs.json?orderBy=\"timestamp\"&limitToLast=100")
-    activity_data = activity_resp.json() or {}
-    
-    # Count activities from last 24 hours
+    # Count anomaly alerts from last 24 hours
     now_utc = datetime.now(timezone.utc)
     cutoff_time = now_utc - timedelta(hours=24)
     
-    recent_activity = 0
-    for activity in activity_data.values():
-        if isinstance(activity, dict):
-            timestamp_str = activity.get('timestamp', '')
-            if timestamp_str:
-                try:
-                    activity_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-                    if activity_time >= cutoff_time:
-                        recent_activity += 1
-                except:
-                    pass
+    anomalies_24h = 0
+    for alert in alerts_data.values():
+        if isinstance(alert, dict):
+            timestamp_str = alert.get('timestamp', '')
+            alert_type = alert.get('type', '')
+            message = alert.get('message', '').lower()
+            
+            # Count if it's an anomaly/ML alert
+            if 'anomaly' in alert_type or 'anomaly' in message or alert_type == 'ml':
+                if timestamp_str:
+                    try:
+                        alert_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                        if alert_time >= cutoff_time:
+                            anomalies_24h += 1
+                    except:
+                        pass
+    
+    # Get current packet count from sniffer
+    with traffic_lock:
+        total_packets = len(captured_packets)
     
     return jsonify({
         'totalUsers': len(users_data),
@@ -1711,7 +1716,8 @@ def api_stats():
         'totalDevices': len(devices_data),
         'blockedDevices': blocked_devices,
         'unreadAlerts': unread_alerts,
-        'todayActivity': recent_activity  # Last 24 hours instead of just today
+        'todayActivity': anomalies_24h,  # Anomalies detected in last 24h
+        'totalPackets': total_packets  # Current packet count
     })
 
 @app.route('/api/active-users')
