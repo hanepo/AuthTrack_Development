@@ -1559,16 +1559,70 @@ def api_get_alerts():
         print(f"Error fetching alerts: {e}")
         return jsonify([])
 
+@app.route('/api/alerts/test', methods=['POST'])
+@login_required
+def api_create_test_alerts():
+    """Create test alerts to verify system is working"""
+    try:
+        # Create multiple test alerts with different severities
+        test_alerts = [
+            {
+                'type': 'test_info',
+                'message': '✓ Test Alert: Information level - System is working correctly',
+                'severity': 'info'
+            },
+            {
+                'type': 'test_warning',
+                'message': '⚠️ Test Alert: Warning level - Unusual activity detected',
+                'severity': 'warning'
+            },
+            {
+                'type': 'test_danger',
+                'message': '🚨 Test Alert: Danger level - Critical security event simulated',
+                'severity': 'danger'
+            },
+            {
+                'type': 'ml_test',
+                'message': '📊 Test ML Anomaly: Traffic spike of 2500 KB detected (baseline: 150 KB)',
+                'severity': 'danger'
+            }
+        ]
+        
+        created_count = 0
+        for alert_data in test_alerts:
+            result = create_alert(alert_data['type'], alert_data['message'], alert_data['severity'])
+            if result:
+                created_count += 1
+        
+        return jsonify({
+            'success': True,
+            'message': f'Created {created_count} test alerts',
+            'count': created_count
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 def create_alert(alert_type, message, severity='info'):
     """Create a new alert"""
-    alert = {
-        'type': alert_type,
-        'message': message,
-        'severity': severity,  # info, warning, danger
-        'timestamp': datetime.now(timezone.utc).isoformat(),
-        'read': False
-    }
-    requests.post(f"{FIREBASE_DB_URL}/alerts.json", json=alert)
+    try:
+        alert = {
+            'type': alert_type,
+            'message': message,
+            'severity': severity,  # info, warning, danger
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'read': False
+        }
+        response = requests.post(f"{FIREBASE_DB_URL}/alerts.json", json=alert, timeout=5)
+        if response.status_code in [200, 201]:
+            print(f"✓ Alert created: {message[:60]}...")
+            return True
+        else:
+            print(f"✗ Failed to create alert: HTTP {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"✗ Error creating alert: {e}")
+        return False
 
 def check_suspicious_activity(activity):
     """Check for suspicious patterns and create alerts"""
@@ -1816,8 +1870,8 @@ def api_network_stats():
         # Count unique connections (unique src-dst pairs)
         connections = set()
         for p in captured_packets:
-            src = p.get('src', '')
-            dst = p.get('dst', '')
+            src = p.get('source', '')
+            dst = p.get('destination', '')
             if src and dst:
                 connections.add(f"{src}-{dst}")
         

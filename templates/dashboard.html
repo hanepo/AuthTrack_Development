@@ -1779,8 +1779,12 @@
           }
 
           // Alerts
+          console.log("Fetching alerts...");
           const alertsRes = await fetch("/api/alerts");
           const alerts = await alertsRes.json();
+          console.log("Alerts received:", alerts);
+          console.log("Number of alerts:", alerts.length);
+          console.log("Rendering alerts (showing first 5)...");
           renderAlerts(alerts.slice(0, 5));
           renderAllAlerts(alerts);
 
@@ -1798,12 +1802,15 @@
       }
 
       function renderAlerts(alerts) {
+        console.log("renderAlerts called with:", alerts);
         const container = document.getElementById("alertsList");
         if (!alerts || alerts.length === 0) {
+          console.log("No alerts to display");
           container.innerHTML =
             '<div class="empty-state"><i class="fa-solid fa-check-circle" style="color: var(--success);"></i><p>No alerts</p></div>';
           return;
         }
+        console.log("Rendering", alerts.length, "alerts");
         container.innerHTML = alerts
           .map(
             (a) => `
@@ -1814,6 +1821,7 @@
         `,
           )
           .join("");
+        console.log("Alerts rendered successfully");
       }
 
       function renderAllAlerts(alerts) {
@@ -2615,15 +2623,20 @@
 
       onAuthStateChanged(auth, async (user) => {
         if (user) {
-          document.getElementById("userEmail").textContent = user.email;
+          const userEmailEl = document.getElementById("userEmail");
+          if (userEmailEl) {
+            userEmailEl.textContent = user.email;
+          }
 
           const sessionRes = await fetch("/api/auth/session");
           const session = await sessionRes.json();
 
           if (session.loggedIn) {
             const roleBadge = document.getElementById("userRole");
-            roleBadge.textContent = session.role.toUpperCase();
-            roleBadge.className = "role-badge role-" + session.role;
+            if (roleBadge) {
+              roleBadge.textContent = session.role.toUpperCase();
+              roleBadge.className = "role-badge role-" + session.role;
+            }
           } else {
             window.location.href = "/login";
           }
