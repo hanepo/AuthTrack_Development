@@ -2177,7 +2177,7 @@ def api_network_topology():
     return jsonify(topology)
 
 @app.route('/api/ml/anomalies')
-@admin_required
+@login_required
 def api_ml_anomalies():
     """Detect anomalies using ML (traffic values stored in KB)"""
     global anomaly_detector
@@ -2289,11 +2289,13 @@ def api_ml_anomalies():
             if latest['value_kb'] >= significant_kb:
                 print(f"  → Spike is SIGNIFICANT ({latest['value_kb']} KB >= {significant_kb:.2f} KB)")
                 
-                if admin_user_id:
-                    print(f"  → Sending Telegram alert to admin: {admin_user_id}")
+                # Send to current logged-in user (not just admin)
+                current_user_id = session.get('user_id')
+                if current_user_id:
+                    print(f"  → Sending Telegram alert to user: {current_user_id}")
                     try:
                         notify_security_alert(
-                            admin_user_id,
+                            current_user_id,
                             'anomaly',
                             f"Significant traffic spike: {latest['value_kb']} KB at {latest['time']} (baseline: {round(baseline_kb,3)} KB)"
                         )
@@ -2301,7 +2303,7 @@ def api_ml_anomalies():
                     except Exception as e:
                         print(f"  ✗ Telegram notification failed: {e}")
                 else:
-                    print(f"  ✗ No admin_user_id set - Telegram notification skipped")
+                    print(f"  ✗ No user logged in - Telegram notification skipped")
             else:
                 print(f"  → Spike below significant threshold ({latest['value_kb']} KB < {significant_kb:.2f} KB) - Telegram skipped")
 
